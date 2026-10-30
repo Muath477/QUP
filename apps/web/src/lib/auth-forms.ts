@@ -9,7 +9,7 @@ import { z } from "zod";
 
 const PASSWORD_MIN_LENGTH = 12;
 const PASSWORD_MAX_LENGTH = 128;
-const MAX_NAME_LENGTH = 100;
+const MAX_NAME_LENGTH = 80;
 
 /** Blank optional inputs are "not provided", not empty strings to validate. */
 const blankToUndefined = (value: string) => (value.trim() === "" ? undefined : value.trim());
@@ -47,3 +47,27 @@ export const registerForm = z
   });
 export type RegisterFormInput = z.input<typeof registerForm>;
 export type RegisterForm = z.output<typeof registerForm>;
+
+export const profileForm = z.object({
+  displayName: z.string().trim().max(MAX_NAME_LENGTH, "الاسم طويل جدًا"),
+});
+export type ProfileForm = z.infer<typeof profileForm>;
+
+export const passwordForm = z
+  .object({
+    currentPassword: z.string().min(1, "اكتب كلمة المرور الحالية"),
+    newPassword: z
+      .string()
+      .min(PASSWORD_MIN_LENGTH, `كلمة المرور ${PASSWORD_MIN_LENGTH} حرفًا على الأقل`)
+      .max(PASSWORD_MAX_LENGTH, "كلمة المرور طويلة جدًا"),
+    confirmPassword: z.string(),
+  })
+  .refine((form) => form.newPassword === form.confirmPassword, {
+    message: "كلمتا المرور غير متطابقتين",
+    path: ["confirmPassword"],
+  })
+  .refine((form) => form.newPassword !== form.currentPassword, {
+    message: "اختر كلمة مرور مختلفة عن الحالية",
+    path: ["newPassword"],
+  });
+export type PasswordForm = z.infer<typeof passwordForm>;

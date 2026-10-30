@@ -8,6 +8,7 @@ import { ApiError } from "./api";
 const BY_CODE: Record<string, string> = {
   INVALID_CREDENTIALS: "بيانات الدخول غير صحيحة.",
   IDENTIFIER_TAKEN: "هذا البريد أو رقم الجوال مسجّل من قبل. جرّب تسجيل الدخول.",
+  CURRENT_PASSWORD_INCORRECT: "كلمة المرور الحالية غير صحيحة.",
   ACCOUNT_DISABLED: "هذا الحساب موقوف. تواصل مع الدعم.",
   VALIDATION_FAILED: "تحقق من البيانات المدخلة ثم حاول مرة أخرى.",
   RATE_LIMITED: "محاولات كثيرة. انتظر دقيقة ثم حاول مرة أخرى.",

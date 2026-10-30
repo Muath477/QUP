@@ -406,6 +406,12 @@ export const getExamAccess = (examId: string) => api<ExamAccess>(`/exams/${examI
 
 export const revokeOtherSessions = () => api<void>("/auth/sessions/revoke", { method: "POST" });
 
+export const updateProfile = (body: { displayName: string }) =>
+  api<{ user: User }>("/auth/me", { method: "PATCH", body });
+
+export const changePassword = (body: { currentPassword: string; newPassword: string }) =>
+  api<void>("/auth/password", { method: "POST", body });
+
 export const getSkillProfile = (examId: string) =>
   api<SkillProfile>(`/exams/${examId}/skill-profile`);
 

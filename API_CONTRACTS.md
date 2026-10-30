@@ -33,6 +33,8 @@ POST /auth/register
 POST /auth/login
 POST /auth/logout
 GET  /auth/me
+PATCH /auth/me
+POST /auth/password
 POST /auth/sessions/revoke
 ```
 
@@ -42,6 +44,10 @@ POST /auth/sessions/revoke
   Unknown account and wrong password both return `401 INVALID_CREDENTIALS`.
 - `logout`: `204`, clears the cookie. `sessions/revoke`: signs out every *other* session, `204`.
 - `me`: `{ user, roles, permissions }`.
+- `PATCH me`: `{ displayName }` — trimmed, at most 80 characters; blank clears it. `200 { user }`.
+- `password`: `{ currentPassword, newPassword }` — new password follows the registration policy.
+  A wrong current password returns `422 CURRENT_PASSWORD_INCORRECT`. `204`; every other session is
+  signed out, the current one stays. Rate-limited like login.
 - No OTP/verification (OPEN_QUESTIONS.md #6).
 
 Errors: `VALIDATION_FAILED` (400, with `details: [{ path, message }]`), `INVALID_CREDENTIALS` (401),
