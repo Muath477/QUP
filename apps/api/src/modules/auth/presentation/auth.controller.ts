@@ -53,7 +53,10 @@ function toPublicUser(user: UserProfile): PublicUser {
 }
 
 function clientContext(request: FastifyRequest): ClientContext {
-  return { userAgent: request.headers["user-agent"] ?? null, ipAddress: request.ip ?? null };
+  return {
+    userAgent: request.headers["user-agent"] ?? null,
+    ipAddress: request.clientAddress || request.ip || null,
+  };
 }
 
 /** API_CONTRACTS.md "Auth". */

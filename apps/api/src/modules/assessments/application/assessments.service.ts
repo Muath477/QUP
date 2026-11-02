@@ -528,6 +528,12 @@ export class AssessmentsService implements StudentMistakes, StudentItems {
     const planned = session.plannedItemCount ?? 0;
 
     if (!pending && session.status === "IN_PROGRESS" && finalized() < planned) {
+      // Access is checked again for every new item, not only at the start: a
+      // session opened while subscribed must not keep serving the bank after
+      // the subscription ends.
+      if (!(await this.access.hasExamAccess(session.studentId, session.examId))) {
+        throw new TrainingRequiresAccess();
+      }
       const decision = await this.adaptive.decide({
         studentId: session.studentId,
         examId: session.examId,
