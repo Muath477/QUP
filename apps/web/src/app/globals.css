@@ -3675,3 +3675,75 @@
     gap: var(--space-1);
   }
 }
+
+/* Weighted admission percentage calculator (public tool). */
+@layer components {
+  :where(.page--narrow) {
+    max-width: 60rem;
+    margin-inline: auto;
+  }
+  :where(.calculator) {
+    display: grid;
+    gap: var(--space-6);
+    align-items: start;
+  }
+  @media (min-width: 52rem) {
+    :where(.calculator) {
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    }
+  }
+  :where(.calculator__fields) {
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  }
+  :where(.calculator__custom > summary) {
+    cursor: pointer;
+    color: var(--color-blue-strong);
+    margin-bottom: var(--space-3);
+  }
+  :where(.calculator__result) {
+    display: grid;
+    gap: var(--space-4);
+    position: sticky;
+    top: var(--space-6);
+  }
+  :where(.calculator__result > h2) {
+    margin: 0;
+  }
+  :where(.calculator__score) {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-1);
+    margin: 0;
+    font-family: var(--font-heading);
+    color: var(--color-navy);
+  }
+  :where(.calculator__score strong) {
+    font-size: 3rem;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  :where(.calculator__parts) {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-1);
+  }
+  :where(.calculator__parts li) {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px dashed var(--color-border);
+    padding-block: var(--space-1);
+    font-variant-numeric: tabular-nums;
+  }
+  :where(.calculator__cta) {
+    padding: var(--space-4);
+    border-radius: var(--radius-small);
+    background: var(--color-gold-surface);
+  }
+  :where(.calculator__cta .btn) {
+    align-self: flex-start;
+  }
+}
