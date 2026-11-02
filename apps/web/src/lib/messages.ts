@@ -17,6 +17,8 @@ const BY_CODE: Record<string, string> = {
   NO_QUESTIONS_AVAILABLE: "لا توجد أسئلة متاحة لهذا الاختبار بعد.",
   FULL_DIAGNOSTIC_REQUIRES_ACCESS: "التشخيص الكامل ضمن باقة هذا الاختبار.",
   TRAINING_REQUIRES_ACCESS: "التدريب التكيفي ضمن باقة هذا الاختبار.",
+  MOCK_EXAM_REQUIRES_ACCESS: "الاختبار المحاكي ضمن باقة هذا الاختبار.",
+  MOCK_EXAM_TIME_UP: "انتهى وقت الاختبار، وسُلِّم بما أجبت عنه.",
   NOTHING_TO_TRAIN: "لا يوجد ما تتدرّب عليه الآن في هذا الاختبار.",
   REASSESSMENT_REQUIRES_ACCESS: "إعادة القياس ضمن باقة هذا الاختبار.",
   SKILL_NOT_FOUND: "هذه المهارة ليست ضمن الاختبار.",

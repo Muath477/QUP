@@ -283,7 +283,9 @@ export class AssessmentsController {
     @CurrentPrincipal() principal: Principal,
     @Param("sessionId", uuid) sessionId: string,
   ) {
-    return toSessionView(await this.assessments.start(principal.userId, sessionId));
+    await this.assessments.start(principal.userId, sessionId);
+    // Read back with progress so a mock exam's clock is in the first response.
+    return this.get(principal, sessionId);
   }
 
   @Get("assessments/:sessionId/current-item")

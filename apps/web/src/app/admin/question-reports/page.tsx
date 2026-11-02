@@ -50,8 +50,9 @@ function Reports({ userId }: { userId: string }) {
         description="ما أبلغ عنه الطلاب: إجابة معتمدة خاطئة، أو صياغة غير واضحة، أو خطأ إملائي. أصلح السؤال في نسخة جديدة، ثم أغلق البلاغ."
       />
       <section className="card stack" aria-label="البلاغات">
-        <div className="row">
-          <div className="chip-group" role="group" aria-label="تصفية حسب الحالة">
+        <fieldset className="row">
+          <legend className="visually-hidden">تصفية حسب الحالة</legend>
+          <div className="chip-group">
             {FILTERS.map((filter) => (
               <button
                 key={filter.label}
@@ -68,7 +69,7 @@ function Reports({ userId }: { userId: string }) {
               </button>
             ))}
           </div>
-        </div>
+        </fieldset>
         {reports.isPending ? <Loading /> : null}
         {reports.isError ? <ErrorNotice error={reports.error} /> : null}
         {reports.data?.items.length === 0 ? (

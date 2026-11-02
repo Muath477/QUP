@@ -105,6 +105,8 @@ export interface AssessmentSession {
   type: SessionType;
   status: SessionStatus;
   progress?: { answered: number; total: number };
+  /** Mock exam only: when the clock runs out (ISO time). */
+  deadline?: string | null;
 }
 
 export interface SessionHistoryEntry extends AssessmentSession {
@@ -360,6 +362,39 @@ export const getReassessmentResult = (sessionId: string) =>
 
 export const startTraining = (examId: string) =>
   api<AssessmentSession>(`/exams/${examId}/assessments/training`, { method: "POST" });
+
+export const startMockExam = (examId: string) =>
+  api<AssessmentSession>(`/exams/${examId}/assessments/mock-exam`, { method: "POST" });
+
+export interface MockSkillResult {
+  skillId: string;
+  skillName: string;
+  correct: number;
+  total: number;
+}
+
+export interface MockReviewItem {
+  ordinal: number;
+  skillName: string | null;
+  outcome: "CORRECT" | "INCORRECT" | "NOT_ANSWERED";
+  question: NonNullable<CurrentItem["item"]>["question"];
+  chosenKeys: string[];
+  correctOptionKeys: string[];
+  explanation: RichContent | null;
+}
+
+export interface MockExamResult {
+  correct: number;
+  answered: number;
+  total: number;
+  skills: MockSkillResult[];
+  startedAt: string | null;
+  completedAt: string | null;
+  review: MockReviewItem[];
+}
+
+export const getMockResult = (sessionId: string) =>
+  api<MockExamResult>(`/assessments/${sessionId}/mock-result`);
 
 /** Ends a training session early; a diagnostic only once every item is answered. */
 export const completeSession = (sessionId: string) =>
