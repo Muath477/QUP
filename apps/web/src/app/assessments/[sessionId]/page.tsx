@@ -51,6 +51,7 @@ export default function AssessmentPage() {
         <AssessmentQuestions
           key={sessionId}
           sessionId={sessionId}
+          examId={data.examId}
           completion={{
             href:
               type === "ADAPTIVE_TRAINING"

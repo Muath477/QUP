@@ -139,6 +139,7 @@ export interface CurrentItem {
     /** Training: the skill this question was chosen for. */
     target?: { skillName: string };
     question: {
+      questionVersionId: string;
       questionType: "SINGLE_CHOICE" | "MULTIPLE_CHOICE" | "TRUE_FALSE";
       stem: RichContent;
       options: { key: string; content: RichContent }[];

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { MistakeTutor } from "@/components/mistake-tutor";
 import { RichContent } from "@/components/rich-content";
 import { ErrorNotice, Loading } from "@/components/status";
 import {
@@ -21,10 +22,13 @@ const PERCENT = 100;
 
 export function AssessmentQuestions({
   sessionId,
+  examId,
   completion,
   endLabel,
 }: {
   sessionId: string;
+  /** The session's exam: training reviews offer an explanation of a wrong answer. */
+  examId?: string;
   /** Where the student goes once every item is finalized, and the button that says so. */
   completion: { href: string; label: string };
   /** Training: the student may stop at any time with a button saying this. */
@@ -57,6 +61,7 @@ export function AssessmentQuestions({
         // A new question starts from a clean slate: no selection, no feedback.
         key={item.id}
         sessionId={sessionId}
+        examId={examId}
         item={item}
         progress={current.data.progress}
         completedLabel={completion.label}
@@ -102,6 +107,7 @@ function EndSession({
 
 interface QuestionProps {
   sessionId: string;
+  examId?: string;
   item: NonNullable<CurrentItem["item"]>;
   progress: CurrentItem["progress"];
   completedLabel: string;
@@ -112,6 +118,7 @@ interface QuestionProps {
 
 function Question({
   sessionId,
+  examId,
   item,
   progress,
   completedLabel,
@@ -249,6 +256,9 @@ function Question({
       {submit.isError ? <ErrorNotice error={submit.error} /> : null}
       {outcome ? <Feedback isCorrect={outcome.result.isCorrect} /> : null}
       {outcome?.review ? <Review options={item.question.options} review={outcome.review} /> : null}
+      {outcome?.review && outcome.result.isCorrect === false && examId ? (
+        <MistakeTutor examId={examId} questionVersionId={item.question.questionVersionId} />
+      ) : null}
 
       <div className="question-footer">
         {outcome ? (

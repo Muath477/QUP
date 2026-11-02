@@ -3613,3 +3613,32 @@
     color: var(--color-danger);
   }
 }
+
+/* AI tutor: a personalised explanation of a student's own mistake. */
+@layer components {
+  :where(.tutor) {
+    padding: var(--space-4);
+    border: 1px solid color-mix(in srgb, var(--color-blue) 25%, transparent);
+    border-radius: var(--radius-small);
+    background: var(--color-blue-surface);
+  }
+  :where(.tutor > p) {
+    margin: 0;
+  }
+  :where(.tutor__title) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 700;
+    color: var(--color-blue-strong);
+  }
+  :where(.tutor__tip) {
+    padding-inline-start: var(--space-3);
+    border-inline-start: 3px solid var(--color-gold);
+  }
+  :where(.tutor__trigger) {
+    align-self: flex-start;
+    gap: var(--space-2);
+  }
+}
