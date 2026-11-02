@@ -16,6 +16,8 @@ import { durationText, type ReviewFilter, reviewFilterMatches } from "@/lib/mock
 import { useRequireUser } from "@/lib/session";
 
 const PERCENT = 100;
+/** Below half right, a skill's bar is drawn as a weakness. */
+const WEAK_SHARE = 0.5;
 
 const FILTERS: { value: ReviewFilter; label: string }[] = [
   { value: "WRONG", label: "أخطائي" },
@@ -97,7 +99,7 @@ function Summary({ result }: { result: MockExamResult }) {
                 aria-label={`${skill.correct} صحيحة من ${skill.total}`}
               >
                 <span
-                  className="progress__bar"
+                  className={`progress__bar${skill.correct / skill.total < WEAK_SHARE ? " progress__bar--weak" : ""}`}
                   style={{ width: `${(skill.correct / skill.total) * PERCENT}%` }}
                 />
               </span>

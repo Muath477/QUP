@@ -3847,3 +3847,18 @@
     }
   }
 }
+
+/* A running question session: the phone shows the question, not the tab bar. */
+@layer components {
+  :where(.workspace--focus .mobile-nav) {
+    display: none;
+  }
+  :where(.workspace--focus .workspace-content) {
+    padding-bottom: 1.5rem;
+  }
+}
+@layer components {
+  :where(.progress__bar--weak) {
+    background: var(--color-danger);
+  }
+}
