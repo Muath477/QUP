@@ -243,6 +243,7 @@ export class DrizzleAssessmentStore implements AssessmentStore {
     studentId: string,
     examId: string,
     limit: number,
+    questionVersionId: string | null = null,
   ): Promise<TrainingMistake[]> {
     const rows = await this.db.execute<{
       question_version_id: string;
@@ -276,6 +277,7 @@ export class DrizzleAssessmentStore implements AssessmentStore {
           AND s.type = 'ADAPTIVE_TRAINING'
           AND a.result_type = 'ANSWERED'
           AND a.is_correct = false
+          AND (${questionVersionId}::uuid IS NULL OR i.question_version_id = ${questionVersionId}::uuid)
         ORDER BY i.question_version_id, a.finalized_at DESC
       ) latest
       ORDER BY answered_at DESC, question_version_id

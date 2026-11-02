@@ -118,11 +118,21 @@ const envSchema = z.object({
   IMPORT_STORAGE_DIR: z.string().min(1).default("var/imports"),
 
   /**
-   * AI assistance for authors (AI_INTEGRATION.md). `fake` is the deterministic
-   * test provider; real providers wait for OPEN_QUESTIONS.md #17. Defaults to
-   * `fake` outside production and `disabled` in production.
+   * AI assistance (AI_INTEGRATION.md). `fake` is the deterministic test
+   * provider; `anthropic` calls Claude and needs ANTHROPIC_API_KEY. Defaults
+   * to `fake` outside production and `disabled` in production.
    */
-  AI_PROVIDER: z.enum(["fake", "disabled"]).optional(),
+  AI_PROVIDER: z.enum(["fake", "anthropic", "disabled"]).optional(),
+  ANTHROPIC_API_KEY: optionalSecret,
+  /** The Claude model every task runs on. */
+  AI_MODEL: z.string().trim().min(1).default("claude-opus-5-5"),
+  /** Claude's effort level: these tasks are short, structured answers. */
+  AI_EFFORT: z.enum(["low", "medium", "high"]).default("medium"),
+  /**
+   * Students may ask for a personalised explanation of a wrong answer
+   * (OPEN_QUESTIONS.md #18). Off until the product owner turns it on.
+   */
+  AI_STUDENT_EXPLANATIONS: booleanFlag.default(false),
   /** Per attempt; the attempt is aborted when it runs out. */
   AI_TIMEOUT_MS: z.coerce
     .number()
@@ -152,7 +162,24 @@ function crossFieldProblems(env: z.infer<typeof envSchema>): string[] {
   if (env.NODE_ENV === "production" && env.AI_PROVIDER === "fake") {
     problems.push("AI_PROVIDER: the fake provider is for development and tests only");
   }
+  if (env.AI_PROVIDER === "anthropic" && env.ANTHROPIC_API_KEY === undefined) {
+    problems.push("ANTHROPIC_API_KEY: required when AI_PROVIDER=anthropic");
+  }
   return problems;
+}
+
+export type AiProviderConfig =
+  | { kind: "fake" }
+  | { kind: "anthropic"; apiKey: string; model: string; effort: "low" | "medium" | "high" };
+
+/** null: AI is off and its routes answer AI_UNAVAILABLE. */
+function aiProvider(env: z.infer<typeof envSchema>): AiProviderConfig | null {
+  const kind = env.AI_PROVIDER ?? (env.NODE_ENV === "production" ? "disabled" : "fake");
+  if (kind === "fake") return { kind };
+  if (kind === "anthropic" && env.ANTHROPIC_API_KEY !== undefined) {
+    return { kind, apiKey: env.ANTHROPIC_API_KEY, model: env.AI_MODEL, effort: env.AI_EFFORT };
+  }
+  return null;
 }
 
 export type AppConfig = ReturnType<typeof toAppConfig>;
@@ -210,11 +237,8 @@ function toAppConfig(env: z.infer<typeof envSchema>) {
       storageDir: env.IMPORT_STORAGE_DIR,
     },
     ai: {
-      /** null: AI is off and its routes answer AI_UNAVAILABLE. */
-      provider:
-        (env.AI_PROVIDER ?? (env.NODE_ENV === "production" ? "disabled" : "fake")) === "fake"
-          ? ("fake" as const)
-          : null,
+      provider: aiProvider(env),
+      studentExplanations: env.AI_STUDENT_EXPLANATIONS,
       timeoutMs: env.AI_TIMEOUT_MS,
       maxAttempts: env.AI_MAX_ATTEMPTS,
     },

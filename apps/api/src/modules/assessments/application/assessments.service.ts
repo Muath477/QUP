@@ -26,6 +26,7 @@ import {
   SETTINGS_READER,
   type SettingsReader,
 } from "../../settings/settings.contract.js";
+import type { StudentMistake, StudentMistakes } from "../assessments.contract.js";
 import {
   AssessmentItemNotFound,
   AssessmentNotActive,
@@ -126,7 +127,7 @@ export interface CurrentItem {
  * as not found (SECURITY.md: never trust a studentId from the client; no IDOR).
  */
 @Injectable()
-export class AssessmentsService {
+export class AssessmentsService implements StudentMistakes {
   constructor(
     @Inject(ASSESSMENT_STORE) private readonly store: AssessmentStore,
     @Inject(CATALOG_LOOKUP) private readonly catalog: CatalogLookup,
@@ -484,6 +485,34 @@ export class AssessmentsService {
         ...(target ? { target: { skillName: target.skillName } } : {}),
       },
       progress,
+    };
+  }
+
+  /** STUDENT_MISTAKES: one question's latest wrong training answer, with its answer key. */
+  async mistakeOf(
+    studentId: string,
+    examId: string,
+    questionVersionId: string,
+  ): Promise<StudentMistake | null> {
+    if (!(await this.access.hasExamAccess(studentId, examId))) {
+      throw new TrainingRequiresAccess();
+    }
+    const [mistake] = await this.store.trainingMistakes(studentId, examId, 1, questionVersionId);
+    if (!mistake) return null;
+    const [question, targets] = await Promise.all([
+      this.question(mistake.questionVersionId),
+      this.adaptive.targetsOf(mistake.adaptiveDecisionId ? [mistake.adaptiveDecisionId] : []),
+    ]);
+    return {
+      questionVersionId: mistake.questionVersionId,
+      answeredAt: mistake.answeredAt,
+      skillName: targets.get(mistake.adaptiveDecisionId ?? "")?.skillName ?? null,
+      stem: question.stem,
+      options: [...question.options]
+        .sort((a, b) => a.displayOrder - b.displayOrder)
+        .map(({ key, content, isCorrect }) => ({ key, content, isCorrect })),
+      chosenKeys: mistake.chosenKeys,
+      explanation: question.explanation,
     };
   }
 
