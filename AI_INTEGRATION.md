@@ -67,6 +67,17 @@ Assumptions: OPEN_QUESTIONS.md #19a.
   - A refusal or a `max_tokens` stop is a provider error, never output.
   - Prompts carry only the task's system prompt and escaped data; validation and grounding are
     unchanged.
+- **Other vendors (2026-11-02):** an adapter for the OpenAI Chat Completions protocol
+  (`modules/ai/infrastructure/openai-compatible-provider.ts`, plain `fetch`, no SDK) runs the same
+  tasks on other vendors.
+  - Presets: `grok` (xAI), `openai`, `deepseek`, `groq`, `openrouter` and `gemini` (Google's
+    OpenAI-compatible endpoint).
+  - `openai-compatible` works with any other server at `AI_BASE_URL`, such as a local Ollama.
+  - Each needs `AI_API_KEY` and `AI_MODEL`. `AI_BASE_URL` overrides a preset's address.
+  - An HTTP error, an empty answer or a `length` cut-off is a provider error, never output.
+  - Prompts, validation and grounding are the same as with Claude.
+- **Timeouts:** with a real provider each attempt gets 45 seconds by default (15 with `fake`). The
+  web proxy waits up to 120 seconds on AI routes and 30 seconds on every other route.
 - **`draft_question` (`question-v1`):** an author picks a skill, a difficulty and optional notes,
   and gets one SINGLE_CHOICE **draft**. Endpoint: `POST /admin/ai/question-drafts`, web page
   `/admin/questions/generate`.

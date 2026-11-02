@@ -123,6 +123,69 @@ describe("configuration", () => {
     expect(config.ai.studentExplanations).toBe(true);
   });
 
+  it("gives a real model more time per attempt than the test provider", () => {
+    const claude = loadConfig({
+      DATABASE_URL: VALID_URL,
+      AI_PROVIDER: "anthropic",
+      ANTHROPIC_API_KEY: "sk-ant-test-key",
+    });
+    expect(claude.ai.timeoutMs).toBe(45_000);
+    expect(
+      loadConfig({
+        DATABASE_URL: VALID_URL,
+        AI_PROVIDER: "anthropic",
+        AI_API_KEY: "sk-ant-test-key",
+        AI_TIMEOUT_MS: "20000",
+      }).ai,
+    ).toMatchObject({
+      provider: { kind: "anthropic", apiKey: "sk-ant-test-key" },
+      timeoutMs: 20_000,
+    });
+  });
+
+  it("runs Grok and other OpenAI-compatible providers at their public address", () => {
+    expect(
+      loadConfig({
+        DATABASE_URL: VALID_URL,
+        ...PRODUCTION,
+        AI_PROVIDER: "grok",
+        AI_API_KEY: "xai-test-key",
+        AI_MODEL: "grok-test-model",
+      }).ai.provider,
+    ).toEqual({
+      kind: "openai-compatible",
+      name: "grok",
+      baseUrl: "https://api.x.ai/v1",
+      apiKey: "xai-test-key",
+      model: "grok-test-model",
+    });
+    expect(
+      loadConfig({
+        DATABASE_URL: VALID_URL,
+        AI_PROVIDER: "openai-compatible",
+        AI_BASE_URL: "http://localhost:11434/v1",
+        AI_MODEL: "llama-test",
+      }).ai.provider,
+    ).toMatchObject({
+      name: "openai-compatible",
+      baseUrl: "http://localhost:11434/v1",
+      apiKey: "",
+    });
+  });
+
+  it("refuses an OpenAI-compatible provider without its key, model or address", () => {
+    expect(loadExpectingFailure({ DATABASE_URL: VALID_URL, AI_PROVIDER: "grok" }).problems).toEqual(
+      [expect.stringMatching(/^AI_API_KEY/), expect.stringMatching(/^AI_MODEL/)],
+    );
+    expect(
+      loadExpectingFailure({
+        DATABASE_URL: VALID_URL,
+        AI_PROVIDER: "openai-compatible",
+        AI_MODEL: "m",
+      }).problems,
+    ).toEqual([expect.stringMatching(/^AI_BASE_URL/)]);
+  });
+
   it("refuses Claude without an API key, naming the variable only", () => {
     const error = loadExpectingFailure({ DATABASE_URL: VALID_URL, AI_PROVIDER: "anthropic" });
     expect(error.problems.some((p) => p.startsWith("ANTHROPIC_API_KEY"))).toBe(true);

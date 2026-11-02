@@ -13,6 +13,7 @@ import { StudentTutorService } from "./application/student-tutor.service.js";
 import { AI_RUN_STORE } from "./domain/ports.js";
 import { AnthropicAiProvider } from "./infrastructure/anthropic-provider.js";
 import { DrizzleAiRunStore } from "./infrastructure/drizzle-ai-run-store.js";
+import { OpenAiCompatibleProvider } from "./infrastructure/openai-compatible-provider.js";
 import { AdminAiController } from "./presentation/admin-ai.controller.js";
 import { StudentAiController } from "./presentation/student-ai.controller.js";
 
@@ -39,6 +40,7 @@ import { StudentAiController } from "./presentation/student-ai.controller.js";
         const provider = config.ai.provider;
         if (provider?.kind === "fake") return new FakeAiProvider();
         if (provider?.kind === "anthropic") return new AnthropicAiProvider(provider);
+        if (provider?.kind === "openai-compatible") return new OpenAiCompatibleProvider(provider);
         return null;
       },
     },
