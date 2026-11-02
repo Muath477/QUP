@@ -26,7 +26,12 @@ import {
   SETTINGS_READER,
   type SettingsReader,
 } from "../../settings/settings.contract.js";
-import type { StudentMistake, StudentMistakes } from "../assessments.contract.js";
+import type {
+  StudentItem,
+  StudentItems,
+  StudentMistake,
+  StudentMistakes,
+} from "../assessments.contract.js";
 import {
   AssessmentItemNotFound,
   AssessmentNotActive,
@@ -127,7 +132,7 @@ export interface CurrentItem {
  * as not found (SECURITY.md: never trust a studentId from the client; no IDOR).
  */
 @Injectable()
-export class AssessmentsService implements StudentMistakes {
+export class AssessmentsService implements StudentMistakes, StudentItems {
   constructor(
     @Inject(ASSESSMENT_STORE) private readonly store: AssessmentStore,
     @Inject(CATALOG_LOOKUP) private readonly catalog: CatalogLookup,
@@ -486,6 +491,19 @@ export class AssessmentsService implements StudentMistakes {
       },
       progress,
     };
+  }
+
+  /** STUDENT_ITEMS: an item of the student's own session, once it was shown to them. */
+  async shownItem(
+    studentId: string,
+    sessionId: string,
+    itemId: string,
+  ): Promise<StudentItem | null> {
+    const session = await this.store.findSession(sessionId);
+    if (session?.studentId !== studentId) return null;
+    const item = (await this.store.items(sessionId)).find((candidate) => candidate.id === itemId);
+    if (!item?.presentedAt) return null;
+    return { examId: session.examId, questionVersionId: item.questionVersionId };
   }
 
   /** STUDENT_MISTAKES: one question's latest wrong training answer, with its answer key. */

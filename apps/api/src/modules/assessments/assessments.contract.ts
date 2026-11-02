@@ -30,3 +30,16 @@ export interface StudentMistakes {
 }
 
 export const STUDENT_MISTAKES = Symbol("STUDENT_MISTAKES");
+
+/** An item of one of the student's own sessions that was shown to them. */
+export interface StudentItem {
+  examId: string;
+  questionVersionId: string;
+}
+
+export interface StudentItems {
+  /** The item, when it belongs to the student's session and was presented; null otherwise. */
+  shownItem(studentId: string, sessionId: string, itemId: string): Promise<StudentItem | null>;
+}
+
+export const STUDENT_ITEMS = Symbol("STUDENT_ITEMS");

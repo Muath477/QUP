@@ -36,6 +36,8 @@ const BY_CODE: Record<string, string> = {
   AI_OUTPUT_INVALID: "لم نتمكن من تجهيز شرح موثوق الآن. جرّب مرة أخرى لاحقًا.",
   AI_STUDENT_EXPLANATIONS_OFF: "الشرح المخصص غير مفعّل حاليًا.",
   AI_DAILY_LIMIT_REACHED: "وصلت إلى الحد اليومي للشروح المخصصة. تتجدد غدًا.",
+  QUESTION_REPORT_CLOSED: "أُغلق هذا البلاغ من قبل.",
+  QUESTION_REPORT_NOT_FOUND: "لم نجد هذا البلاغ.",
   MISTAKE_NOT_FOUND: "الشرح المخصص متاح للأسئلة التي أخطأت فيها أثناء التدريب.",
   FORBIDDEN: "ليس لديك صلاحية لهذا الإجراء.",
   CROSS_SITE_REQUEST: "رُفض الطلب لأنه لم يصدر من صفحات QUP. أعد تحميل الصفحة وحاول مرة أخرى.",

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { MistakeTutor } from "@/components/mistake-tutor";
+import { ReportQuestion } from "@/components/report-question";
 import { RichContent } from "@/components/rich-content";
 import { ErrorNotice, Loading } from "@/components/status";
 import {
@@ -291,6 +292,7 @@ function Question({
           </>
         )}
       </div>
+      <ReportQuestion sessionId={sessionId} itemId={item.id} />
     </section>
   );
 }

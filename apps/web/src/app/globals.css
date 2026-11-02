@@ -3642,3 +3642,36 @@
     gap: var(--space-2);
   }
 }
+
+/* Reporting a problem in a question. */
+@layer components {
+  :where(.report-question) {
+    border-top: 1px solid var(--color-border);
+    padding-top: var(--space-3);
+  }
+  :where(.report-question > summary) {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    list-style: none;
+  }
+  :where(.report-question > summary::-webkit-details-marker) {
+    display: none;
+  }
+  :where(.report-question > summary:hover, .report-question[open] > summary) {
+    color: var(--color-text);
+  }
+  :where(.report-question__form) {
+    margin-top: var(--space-3);
+  }
+  :where(.report-question__form > .btn) {
+    align-self: flex-start;
+  }
+  :where(.report-question__done) {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+}
