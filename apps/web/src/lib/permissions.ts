@@ -16,6 +16,7 @@ export const ADMIN_PERMISSIONS = {
   blueprintsManage: "blueprints.manage",
   auditView: "audit.view",
   aiManage: "ai.manage",
+  billingManage: "billing.manage",
 } as const;
 
 export function hasPermission(me: Me | null | undefined, code: string): boolean {
@@ -49,13 +50,25 @@ const ADMIN_NAV: readonly AdminNavItem[] = [
   {
     href: "/admin/imports",
     title: "استيراد الأسئلة",
-    icon: "plus",
+    icon: "layers",
     permission: ADMIN_PERMISSIONS.questionsCreate,
+  },
+  {
+    href: "/admin/question-reports",
+    title: "بلاغات الأسئلة",
+    icon: "flag",
+    permission: ADMIN_PERMISSIONS.questionsReview,
+  },
+  {
+    href: "/admin/billing",
+    title: "الباقات والاشتراكات",
+    icon: "credit",
+    permission: ADMIN_PERMISSIONS.billingManage,
   },
   {
     href: "/admin/settings",
     title: "الإعدادات",
-    icon: "compass",
+    icon: "settings",
     permission: ADMIN_PERMISSIONS.settingsManage,
   },
   {
@@ -73,13 +86,13 @@ const ADMIN_NAV: readonly AdminNavItem[] = [
   {
     href: "/admin/adaptive-decisions",
     title: "قرارات التدريب",
-    icon: "compass",
+    icon: "target",
     permission: ADMIN_PERMISSIONS.auditView,
   },
   {
     href: "/admin/ai",
     title: "الذكاء الاصطناعي",
-    icon: "check",
+    icon: "spark",
     permission: ADMIN_PERMISSIONS.aiManage,
   },
 ];

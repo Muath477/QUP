@@ -26,6 +26,12 @@ import {
   SETTINGS_READER,
   type SettingsReader,
 } from "../../settings/settings.contract.js";
+import type {
+  StudentItem,
+  StudentItems,
+  StudentMistake,
+  StudentMistakes,
+} from "../assessments.contract.js";
 import {
   AssessmentItemNotFound,
   AssessmentNotActive,
@@ -34,6 +40,8 @@ import {
   FullDiagnosticRequiresAccess,
   IdempotencyKeyReused,
   InvalidAnswer,
+  MockExamRequiresAccess,
+  MockExamTimeUp,
   NothingToTrain,
   ReassessmentInProgress,
   ReassessmentNotEnoughQuestions,
@@ -48,6 +56,7 @@ import {
   TRAINING_DEFAULTS,
 } from "../domain/assessment-config.js";
 import { gradeChoice } from "../domain/grading.js";
+import { isPastDeadline, mockDeadline, summarizeMock } from "../domain/mock-exam.js";
 import {
   ASSESSMENT_STORE,
   type AssessmentStore,
@@ -86,6 +95,19 @@ export interface AnswerReview {
   explanation: RichContent | null;
 }
 
+export interface TrainingMistakeView {
+  questionVersionId: string;
+  answeredAt: Date;
+  correctedLater: boolean;
+  skillName: string | null;
+  question: StudentQuestionView;
+  chosenKeys: string[];
+  correctOptionKeys: string[];
+  explanation: RichContent | null;
+}
+
+const TRAINING_MISTAKES_LIMIT = 50;
+
 /** The preliminary result with skills named instead of identified. */
 export interface PreliminaryResultReport {
   score: PreliminaryResult["score"];
@@ -113,7 +135,7 @@ export interface CurrentItem {
  * as not found (SECURITY.md: never trust a studentId from the client; no IDOR).
  */
 @Injectable()
-export class AssessmentsService {
+export class AssessmentsService implements StudentMistakes, StudentItems {
   constructor(
     @Inject(ASSESSMENT_STORE) private readonly store: AssessmentStore,
     @Inject(CATALOG_LOOKUP) private readonly catalog: CatalogLookup,
@@ -170,6 +192,27 @@ export class AssessmentsService {
     return this.diagnostics.open(studentId, examId, "FULL_DIAGNOSTIC");
   }
 
+  /**
+   * Starts — or resumes — a timed mock exam: questions planned up front with
+   * the full diagnostic's domain weights, one clock for the whole session, no
+   * answers revealed until the end. Paid; may be taken again.
+   */
+  async startMockExam(
+    studentId: string,
+    examId: string,
+  ): Promise<{ session: Session; created: boolean }> {
+    await this.diagnostics.assertExamActive(examId);
+    if (!(await this.access.hasExamAccess(studentId, examId))) {
+      throw new MockExamRequiresAccess();
+    }
+    return this.diagnostics.open(studentId, examId, "MOCK_EXAM");
+  }
+
+  /** When the session's clock runs out; null for untimed sessions and before the start. */
+  deadlineOf(session: Session, progress: SessionProgress): Date | null {
+    return session.type === "MOCK_EXAM" ? mockDeadline(session.startedAt, progress.total) : null;
+  }
+
   async get(
     studentId: string,
     sessionId: string,
@@ -195,6 +238,7 @@ export class AssessmentsService {
       total: items.length,
       finalized: items.filter((i) => i.attempt !== null).length,
     };
+    if (await this.closedByClock(session, progress)) return { item: null, progress };
     const next = items.find((i) => i.attempt === null);
     if (!next) return { item: null, progress };
     if (session.status !== "IN_PROGRESS") throw new AssessmentNotActive(session.status);
@@ -230,7 +274,7 @@ export class AssessmentsService {
       const review = await this.reviewOf(session, itemId);
       return {
         attemptId: earlier.id,
-        isCorrect: earlier.isCorrect,
+        isCorrect: session.type === "MOCK_EXAM" ? null : earlier.isCorrect,
         progress,
         completed: progress.finalized === progress.total,
         replayed: true,
@@ -238,8 +282,11 @@ export class AssessmentsService {
       };
     }
 
-    const item = (await this.store.items(sessionId)).find((i) => i.id === itemId);
+    const items = await this.store.items(sessionId);
+    const item = items.find((i) => i.id === itemId);
     if (!item) throw new AssessmentItemNotFound();
+    const clock = { total: items.length, finalized: 0 };
+    if (await this.closedByClock(session, clock)) throw new MockExamTimeUp();
     const question = await this.question(item.questionVersionId);
 
     let outcome: AttemptOutcome = { kind: "SKIPPED" };
@@ -275,7 +322,8 @@ export class AssessmentsService {
     const review = await this.reviewOf(session, itemId, question);
     return {
       attemptId: result.attempt.id,
-      isCorrect: result.attempt.isCorrect,
+      // A mock exam reveals nothing until it ends, as in the real exam.
+      isCorrect: session.type === "MOCK_EXAM" ? null : result.attempt.isCorrect,
       progress: result.progress,
       completed: result.completed,
       replayed: result.kind === "REPLAYED",
@@ -287,8 +335,56 @@ export class AssessmentsService {
     const session = await this.owned(studentId, sessionId);
     if (session.status === "COMPLETED") return session;
     if (session.status !== "IN_PROGRESS") throw new AssessmentNotActive(session.status);
-    // Training may stop at any time; a planned diagnostic only when every item is finalized.
-    return this.store.complete(sessionId, { endingEarly: session.plannedItemCount !== null });
+    // Training and mock exams may stop at any time; a planned diagnostic only when every item is finalized.
+    return this.store.complete(sessionId, {
+      endingEarly: session.plannedItemCount !== null || session.type === "MOCK_EXAM",
+    });
+  }
+
+  /** A mock exam whose clock ran out is completed here, keeping the answers given in time. */
+  private async closedByClock(session: Session, progress: SessionProgress): Promise<boolean> {
+    if (session.status !== "IN_PROGRESS") return false;
+    if (!isPastDeadline(this.deadlineOf(session, progress), new Date())) return false;
+    this.logger.info({ sessionId: session.id }, "Mock exam ended: time is up");
+    await this.store.complete(session.id, { endingEarly: true });
+    return true;
+  }
+
+  /**
+   * A finished mock exam: the score, each skill's share, and every question
+   * with the student's answer, the correct one and its explanation.
+   */
+  async mockResult(studentId: string, sessionId: string) {
+    const session = await this.owned(studentId, sessionId);
+    if (session.type !== "MOCK_EXAM") throw new AssessmentNotFound();
+    if (session.status !== "COMPLETED") throw new AssessmentNotCompleted();
+    const items = await this.store.items(sessionId);
+    const [{ measured, skillNames }, questions, answers] = await Promise.all([
+      measureItems(items, { questions: this.questions, catalog: this.catalog }),
+      this.questions.forDelivery(items.map((i) => i.questionVersionId)),
+      this.store.chosenKeys(sessionId),
+    ]);
+    const summary = summarizeMock(measured, skillNames);
+    return {
+      ...summary,
+      startedAt: session.startedAt,
+      completedAt: session.completedAt,
+      review: items.flatMap((item, index) => {
+        const question = questions.get(item.questionVersionId);
+        if (!question) return [];
+        return [
+          {
+            ordinal: item.ordinal,
+            skillName: skillNames.get(measured[index]?.skillId ?? "") ?? null,
+            outcome: measured[index]?.outcome ?? "NOT_ANSWERED",
+            question: toStudentQuestionView(toPresentable(question)),
+            chosenKeys: answers.get(item.id) ?? [],
+            correctOptionKeys: question.options.filter((o) => o.isCorrect).map((o) => o.key),
+            explanation: question.explanation,
+          },
+        ];
+      }),
+    };
   }
 
   /**
@@ -472,6 +568,77 @@ export class AssessmentsService {
       },
       progress,
     };
+  }
+
+  /** STUDENT_ITEMS: an item of the student's own session, once it was shown to them. */
+  async shownItem(
+    studentId: string,
+    sessionId: string,
+    itemId: string,
+  ): Promise<StudentItem | null> {
+    const session = await this.store.findSession(sessionId);
+    if (session?.studentId !== studentId) return null;
+    const item = (await this.store.items(sessionId)).find((candidate) => candidate.id === itemId);
+    if (!item?.presentedAt) return null;
+    return { examId: session.examId, questionVersionId: item.questionVersionId };
+  }
+
+  /** STUDENT_MISTAKES: one question's latest wrong training answer, with its answer key. */
+  async mistakeOf(
+    studentId: string,
+    examId: string,
+    questionVersionId: string,
+  ): Promise<StudentMistake | null> {
+    if (!(await this.access.hasExamAccess(studentId, examId))) {
+      throw new TrainingRequiresAccess();
+    }
+    const [mistake] = await this.store.trainingMistakes(studentId, examId, 1, questionVersionId);
+    if (!mistake) return null;
+    const [question, targets] = await Promise.all([
+      this.question(mistake.questionVersionId),
+      this.adaptive.targetsOf(mistake.adaptiveDecisionId ? [mistake.adaptiveDecisionId] : []),
+    ]);
+    return {
+      questionVersionId: mistake.questionVersionId,
+      answeredAt: mistake.answeredAt,
+      skillName: targets.get(mistake.adaptiveDecisionId ?? "")?.skillName ?? null,
+      stem: question.stem,
+      options: [...question.options]
+        .sort((a, b) => a.displayOrder - b.displayOrder)
+        .map(({ key, content, isCorrect }) => ({ key, content, isCorrect })),
+      chosenKeys: mistake.chosenKeys,
+      explanation: question.explanation,
+    };
+  }
+
+  async trainingMistakes(studentId: string, examId: string): Promise<TrainingMistakeView[]> {
+    if (!(await this.access.hasExamAccess(studentId, examId))) {
+      throw new TrainingRequiresAccess();
+    }
+    const mistakes = await this.store.trainingMistakes(studentId, examId, TRAINING_MISTAKES_LIMIT);
+    if (mistakes.length === 0) return [];
+    const [questions, targets] = await Promise.all([
+      this.questions.forDelivery(mistakes.map((m) => m.questionVersionId)),
+      this.adaptive.targetsOf(
+        mistakes.flatMap((m) => (m.adaptiveDecisionId ? [m.adaptiveDecisionId] : [])),
+      ),
+    ]);
+    return mistakes.flatMap((mistake) => {
+      const question = questions.get(mistake.questionVersionId);
+      if (!question) return [];
+      return [
+        {
+          questionVersionId: mistake.questionVersionId,
+          answeredAt: mistake.answeredAt,
+          correctedLater: mistake.correctedLater,
+          skillName: targets.get(mistake.adaptiveDecisionId ?? "")?.skillName ?? null,
+          question: toStudentQuestionView(toPresentable(question)),
+          chosenKeys: mistake.chosenKeys,
+          correctOptionKeys: question.options.filter((o) => o.isCorrect).map((o) => o.key),
+          explanation: question.explanation,
+        },
+      ];
+    });
   }
 
   /** The latest item's target, with the answers given on it in this session (skips excluded). */

@@ -43,7 +43,9 @@ export default function AssessmentPage() {
     <main id="main-content" className="page page--focused stack stack--loose">
       <h1>{type ? SESSION_TITLES[type] : "جلستك"}</h1>
       <p className="muted small">
-        خذ وقتك في القراءة. كل إجابة تؤكدها تُحفظ، ويمكنك العودة لإكمال جلستك لاحقًا.
+        {type === "MOCK_EXAM"
+          ? "ظروف الاختبار الحقيقي: وقت واحد للاختبار كله، ولا تظهر صحة الإجابة حتى تسلّم. الوقت يستمر حتى لو أغلقت الصفحة."
+          : "خذ وقتك في القراءة. كل إجابة تؤكدها تُحفظ، ويمكنك العودة لإكمال جلستك لاحقًا."}
       </p>
       {session.isPending || finishedHref ? <Loading label="جارٍ استعادة جلستك…" /> : null}
       {session.isError ? <ErrorNotice error={session.error} /> : null}
@@ -51,11 +53,22 @@ export default function AssessmentPage() {
         <AssessmentQuestions
           key={sessionId}
           sessionId={sessionId}
+          examId={data.examId}
           completion={{
-            href: completionHref({ id: data.id, examId: data.examId, type }),
+            href:
+              type === "ADAPTIVE_TRAINING"
+                ? `${completionHref({ id: data.id, examId: data.examId, type })}?trained=${data.id}`
+                : completionHref({ id: data.id, examId: data.examId, type }),
             label: COMPLETION_LABELS[type],
           }}
-          endLabel={type === "ADAPTIVE_TRAINING" ? "إنهاء التدريب" : undefined}
+          endLabel={
+            type === "ADAPTIVE_TRAINING"
+              ? "إنهاء التدريب"
+              : type === "MOCK_EXAM"
+                ? "تسليم الاختبار"
+                : undefined
+          }
+          deadline={type === "MOCK_EXAM" ? (data.deadline ?? undefined) : undefined}
         />
       ) : data && !finishedHref ? (
         <p className="notice">هذه الجلسة غير متاحة للاستكمال.</p>

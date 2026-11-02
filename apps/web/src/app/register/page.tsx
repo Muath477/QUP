@@ -40,6 +40,7 @@ export default function RegisterPage() {
     <AuthLayout register>
       <form
         className="auth-form"
+        method="post"
         noValidate
         onSubmit={form.handleSubmit((values) => signUp.mutate(values))}
       >

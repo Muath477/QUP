@@ -8,6 +8,7 @@ import { ApiError } from "./api";
 const BY_CODE: Record<string, string> = {
   INVALID_CREDENTIALS: "بيانات الدخول غير صحيحة.",
   IDENTIFIER_TAKEN: "هذا البريد أو رقم الجوال مسجّل من قبل. جرّب تسجيل الدخول.",
+  CURRENT_PASSWORD_INCORRECT: "كلمة المرور الحالية غير صحيحة.",
   ACCOUNT_DISABLED: "هذا الحساب موقوف. تواصل مع الدعم.",
   VALIDATION_FAILED: "تحقق من البيانات المدخلة ثم حاول مرة أخرى.",
   RATE_LIMITED: "محاولات كثيرة. انتظر دقيقة ثم حاول مرة أخرى.",
@@ -16,6 +17,8 @@ const BY_CODE: Record<string, string> = {
   NO_QUESTIONS_AVAILABLE: "لا توجد أسئلة متاحة لهذا الاختبار بعد.",
   FULL_DIAGNOSTIC_REQUIRES_ACCESS: "التشخيص الكامل ضمن باقة هذا الاختبار.",
   TRAINING_REQUIRES_ACCESS: "التدريب التكيفي ضمن باقة هذا الاختبار.",
+  MOCK_EXAM_REQUIRES_ACCESS: "الاختبار المحاكي ضمن باقة هذا الاختبار.",
+  MOCK_EXAM_TIME_UP: "انتهى وقت الاختبار، وسُلِّم بما أجبت عنه.",
   NOTHING_TO_TRAIN: "لا يوجد ما تتدرّب عليه الآن في هذا الاختبار.",
   REASSESSMENT_REQUIRES_ACCESS: "إعادة القياس ضمن باقة هذا الاختبار.",
   SKILL_NOT_FOUND: "هذه المهارة ليست ضمن الاختبار.",
@@ -30,8 +33,23 @@ const BY_CODE: Record<string, string> = {
   PAYMENTS_NOT_CONFIGURED: "الدفع الإلكتروني غير متاح حاليًا. حاول لاحقًا.",
   PAYMENT_PROVIDER_UNAVAILABLE: "تعذّر الاتصال بخدمة الدفع. لم يُخصم منك شيء؛ حاول مرة أخرى.",
   SERVICE_UNAVAILABLE: "الخدمة غير متاحة مؤقتًا. حاول بعد قليل.",
+  AI_UNAVAILABLE: "الشرح المخصص غير متاح الآن. الشرح المعتمد أعلاه يكفيك، وجرّب لاحقًا.",
+  AI_TIMEOUT: "استغرق التحليل وقتًا أطول من المعتاد. جرّب مرة أخرى.",
+  AI_OUTPUT_INVALID: "لم نتمكن من تجهيز شرح موثوق الآن. جرّب مرة أخرى لاحقًا.",
+  AI_STUDENT_EXPLANATIONS_OFF: "الشرح المخصص غير مفعّل حاليًا.",
+  AI_DAILY_LIMIT_REACHED: "وصلت إلى الحد اليومي للشروح المخصصة. تتجدد غدًا.",
+  QUESTION_REPORT_CLOSED: "أُغلق هذا البلاغ من قبل.",
+  QUESTION_REPORT_NOT_FOUND: "لم نجد هذا البلاغ.",
+  MISTAKE_NOT_FOUND: "الشرح المخصص متاح للأسئلة التي أخطأت فيها أثناء التدريب.",
   FORBIDDEN: "ليس لديك صلاحية لهذا الإجراء.",
   CROSS_SITE_REQUEST: "رُفض الطلب لأنه لم يصدر من صفحات QUP. أعد تحميل الصفحة وحاول مرة أخرى.",
+  PLAN_NOT_FOUND: "لم نجد هذه الباقة.",
+  PLAN_CODE_TAKEN: "رمز الباقة مستخدم من قبل. اختر رمزًا آخر.",
+  PLAN_NOT_DRAFT: "لا يمكن تعديل باقة معروضة للبيع؛ أنشئ باقة جديدة بالسعر الجديد.",
+  INVALID_PLAN_TRANSITION: "لا يمكن نقل الباقة إلى هذه الحالة من حالتها الحالية.",
+  PLAN_NOT_SELLABLE: "لا يمكن عرض هذه الباقة للبيع بهذا السعر أو بهذه العملة.",
+  STUDENT_NOT_FOUND: "لم نجد حسابًا بهذا البريد أو الرقم. تأكد من كتابته كما سجّل به الطالب.",
+  ENTITLEMENT_NOT_FOUND: "لم نجد هذا الاشتراك.",
   // Admin: exams and taxonomy.
   EXAM_NOT_FOUND: "لم نجد هذا الاختبار.",
   EXAM_IDENTIFIER_TAKEN: "رمز الاختبار أو رابطه مستخدم من قبل. اختر غيره.",
@@ -84,7 +102,7 @@ const BY_CODE: Record<string, string> = {
   // Admin: settings.
   SETTING_NOT_FOUND: "لم نجد هذا الإعداد.",
   SETTING_VALUE_INVALID:
-    "القيم لا تستوفي شروط هذا الإعداد: يبدأ أدنى مستوى من 0، وتزيد الحدود من مستوى إلى الذي يليه.",
+    "القيم لا تستوفي شروط هذا الإعداد. راجع الحدود الموضحة تحت كل حقل ثم احفظ.",
   SETTING_VERSION_CONFLICT:
     "حفظ شخص آخر نسخة أحدث من هذا الإعداد قبل لحظات. حدّثنا القيم المعروضة؛ راجعها ثم احفظ من جديد.",
 };
@@ -101,7 +119,7 @@ const MINOR_UNITS_PER_RIYAL = 100;
 /** Display only: 19900 → "199 ر.س". The amount charged is the server's. */
 export function formatPrice(amountMinor: number, currency: string): string {
   const amount = amountMinor / MINOR_UNITS_PER_RIYAL;
-  return new Intl.NumberFormat("ar-SA", {
+  return new Intl.NumberFormat("ar-SA-u-nu-latn", {
     style: "currency",
     currency,
     maximumFractionDigits: amountMinor % MINOR_UNITS_PER_RIYAL === 0 ? 0 : 2,

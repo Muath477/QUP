@@ -95,13 +95,37 @@ describe("configuration", () => {
 
   it("uses the test AI provider outside production and none in production", () => {
     expect(loadConfig({ DATABASE_URL: VALID_URL }).ai).toEqual({
-      provider: "fake",
+      provider: { kind: "fake" },
+      studentExplanations: false,
       timeoutMs: 15_000,
       maxAttempts: 2,
     });
     expect(loadConfig({ DATABASE_URL: VALID_URL }).rateLimit.aiPerMinute).toBe(20);
     expect(loadConfig({ DATABASE_URL: VALID_URL, ...PRODUCTION }).ai.provider).toBeNull();
     expect(loadConfig({ DATABASE_URL: VALID_URL, AI_PROVIDER: "disabled" }).ai.provider).toBeNull();
+  });
+
+  it("runs Claude when asked, with a key, on the configured model and effort", () => {
+    const config = loadConfig({
+      DATABASE_URL: VALID_URL,
+      ...PRODUCTION,
+      AI_PROVIDER: "anthropic",
+      ANTHROPIC_API_KEY: "sk-ant-test-key",
+      AI_EFFORT: "low",
+      AI_STUDENT_EXPLANATIONS: "true",
+    });
+    expect(config.ai.provider).toEqual({
+      kind: "anthropic",
+      apiKey: "sk-ant-test-key",
+      model: "claude-opus-5-5",
+      effort: "low",
+    });
+    expect(config.ai.studentExplanations).toBe(true);
+  });
+
+  it("refuses Claude without an API key, naming the variable only", () => {
+    const error = loadExpectingFailure({ DATABASE_URL: VALID_URL, AI_PROVIDER: "anthropic" });
+    expect(error.problems.some((p) => p.startsWith("ANTHROPIC_API_KEY"))).toBe(true);
   });
 
   it("refuses the test AI provider in production (OPEN_QUESTIONS #17)", () => {
