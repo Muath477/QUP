@@ -239,6 +239,23 @@ export class DrizzleAssessmentStore implements AssessmentStore {
     return row?.attempts ?? 0;
   }
 
+  async chosenKeys(sessionId: string): Promise<Map<string, string[]>> {
+    const rows = await this.db
+      .select({
+        itemId: questionAttempts.assessmentItemId,
+        answer: questionAttempts.submittedAnswer,
+      })
+      .from(questionAttempts)
+      .innerJoin(assessmentItems, eq(assessmentItems.id, questionAttempts.assessmentItemId))
+      .where(eq(assessmentItems.sessionId, sessionId));
+    return new Map(
+      rows.map((row) => [
+        row.itemId,
+        (row.answer as { optionKeys?: string[] } | null)?.optionKeys ?? [],
+      ]),
+    );
+  }
+
   async trainingMistakes(
     studentId: string,
     examId: string,
