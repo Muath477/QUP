@@ -67,7 +67,7 @@ export default function RegisterPage() {
         <TextField
           label="رقم الجوال"
           type="tel"
-          hint="بالصيغة الدولية، مثل ‎+9665XXXXXXXX"
+          hint="مثل 05XXXXXXXX أو ‎+9665XXXXXXXX"
           registration={form.register("phone")}
           error={errors.phone?.message}
           autoComplete="tel"
