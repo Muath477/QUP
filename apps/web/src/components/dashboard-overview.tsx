@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { type ExamProgress, getSkillProfile, type SkillProfile } from "@/lib/api";
-import { coverageShare } from "@/lib/dashboard-view";
+import { type ExamProgress, getSkillProfile } from "@/lib/api";
 import { MASTERY_STATE_LABELS, percentText } from "@/lib/mastery-labels";
 import { improvementText, nextStepAction, nextStepLink, nextStepReason } from "@/lib/next-step";
+import { Contours } from "./contours";
 import { Icon } from "./icon";
+import { SkillCounts } from "./skill-counts";
 import { ErrorNotice, Loading } from "./status";
 
 /**
@@ -24,6 +25,7 @@ export function NextStepPanel({ progress }: { progress: ExamProgress }) {
   const next = nextStepLink(progress.nextStep, exam.id);
   return (
     <section className="next-step" aria-labelledby="next-step-title">
+      <Contours className="next-step__contours" />
       <div className="next-step__copy">
         <p className="next-step__label">خطوتك التالية</p>
         <h2 id="next-step-title">{next.label}</h2>
@@ -52,6 +54,7 @@ export function NextStepPanel({ progress }: { progress: ExamProgress }) {
 export function StartPanel({ diagnosticHref }: { diagnosticHref: string }) {
   return (
     <section className="next-step" aria-labelledby="next-step-title">
+      <Contours className="next-step__contours" />
       <div className="next-step__copy">
         <p className="next-step__label">خطوتك الأولى</p>
         <h2 id="next-step-title">ابدأ التشخيص المصغّر المجاني</h2>
@@ -94,48 +97,9 @@ export function ExamTabs({
   );
 }
 
-/**
- * Where the student stands, as four plain counts. The coverage line under the
- * first count is the only graphic: it shows how much of the exam is measured.
- */
+/** Where the student stands: every skill of the exam as one cell, coloured by state. */
 export function StandingSummary({ progress }: { progress: ExamProgress }) {
   return progress.standing ? <SkillCounts summary={progress.standing.summary} /> : null;
-}
-
-/** The four skill counts, shared by the dashboard and the skill profile. */
-export function SkillCounts({ summary }: { summary: SkillProfile["summary"] }) {
-  const share = coverageShare(summary);
-  return (
-    <dl className="stat-row" aria-label="ملخص مهاراتك">
-      <div className="stat">
-        <dt>مهارات قيست</dt>
-        <dd>
-          <bdi>{`${summary.assessed} من ${summary.skills}`}</bdi>
-        </dd>
-        <span className="stat__meter" aria-hidden="true">
-          <span style={{ "--share": share } as CSSProperties} />
-        </span>
-      </div>
-      <div className="stat" data-tone="success">
-        <dt>متقنة</dt>
-        <dd>
-          <bdi>{summary.mastered}</bdi>
-        </dd>
-      </div>
-      <div className="stat">
-        <dt>جاهزة لإعادة القياس</dt>
-        <dd>
-          <bdi>{summary.readyForReassessment}</bdi>
-        </dd>
-      </div>
-      <div className="stat" data-tone="danger">
-        <dt>فجوات</dt>
-        <dd>
-          <bdi>{summary.gaps}</bdi>
-        </dd>
-      </div>
-    </dl>
-  );
 }
 
 /** Each domain's skills with their measured mastery, from the skill profile. */

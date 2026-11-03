@@ -56,14 +56,8 @@ export default function DashboardPage() {
     <main id="main-content" className="page page--wide dash">
       <header className="dash-head">
         <div>
+          <p className="dash-head__exam">{selected ? selected.exam.nameAr : "مساحتك في QUP"}</p>
           <h1>{name ? `مرحبًا، ${name}` : "مرحبًا بك"}</h1>
-          <p className="muted">
-            {selected
-              ? selected.standing
-                ? `ملخص مستواك في ${selected.exam.nameAr}`
-                : selected.exam.nameAr
-              : "هذه مساحتك: نتائجك وجلساتك وخطوتك التالية."}
-          </p>
         </div>
         {selected ? (
           <ExamTabs

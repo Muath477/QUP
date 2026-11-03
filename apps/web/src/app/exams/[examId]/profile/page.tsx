@@ -4,10 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { type CSSProperties, Suspense } from "react";
-import { SkillCounts } from "@/components/dashboard-overview";
 import { EmptyState } from "@/components/empty-state";
 import { Icon } from "@/components/icon";
 import { PageHeading } from "@/components/page-heading";
+import { SkillCounts } from "@/components/skill-counts";
 import { ErrorNotice, Loading } from "@/components/status";
 import {
   getFullReassessmentStatus,

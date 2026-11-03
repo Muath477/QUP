@@ -1,6 +1,10 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
+import { Contours } from "@/components/contours";
 import { Icon } from "@/components/icon";
+import { JourneyRoute } from "@/components/journey-route";
 import { SampleSkillMap } from "@/components/sample-skill-map";
+import { SkillCounts } from "@/components/skill-counts";
 
 /** What sets QUP apart: product rules the platform enforces, not marketing numbers. */
 const principles: { title: string; body: string }[] = [
@@ -94,22 +98,15 @@ export default function LandingPage() {
                 كيف يعمل
               </a>
             </div>
-            <ul className="home-hero__assurance">
-              <li>
-                <Icon name="check" />
-                حساب مجاني
-              </li>
-              <li>
-                <Icon name="check" />
-                نتيجة فور إكمال التشخيص
-              </li>
-              <li>
-                <Icon name="check" />
-                جلساتك محفوظة
-              </li>
-            </ul>
+            <p className="home-hero__assurance">
+              حساب مجاني <span aria-hidden="true">·</span> نتيجة فور إكمال التشخيص{" "}
+              <span aria-hidden="true">·</span> جلساتك محفوظة
+            </p>
           </div>
-          <SampleSkillMap />
+          <div className="home-hero__visual">
+            <Contours />
+            <SampleSkillMap />
+          </div>
         </div>
       </section>
 
@@ -137,9 +134,10 @@ export default function LandingPage() {
           <p className="eyebrow">كيف يعمل</p>
           <h2 id="steps-title">أربع خطوات، من أول سؤال إلى إتقان المهارة.</h2>
         </div>
+        <JourneyRoute />
         <ol className="home-steps__track">
           {steps.map((step, index) => (
-            <li key={step.title}>
+            <li key={step.title} style={{ "--step": index } as CSSProperties}>
               <div className="home-steps__marker">
                 <span className="home-steps__index">{index + 1}</span>
               </div>
@@ -179,20 +177,9 @@ export default function LandingPage() {
               ابدأ الآن <Icon name="arrow" />
             </span>
           </div>
-          <dl className="stat-row stat-row--sample">
-            <div className="stat">
-              <dt>مهارات قيست</dt>
-              <dd>9 من 12</dd>
-            </div>
-            <div className="stat" data-tone="success">
-              <dt>متقنة</dt>
-              <dd>3</dd>
-            </div>
-            <div className="stat" data-tone="danger">
-              <dt>فجوات</dt>
-              <dd>4</dd>
-            </div>
-          </dl>
+          <SkillCounts
+            summary={{ skills: 12, assessed: 9, mastered: 3, readyForReassessment: 1, gaps: 4 }}
+          />
         </figure>
       </section>
 
