@@ -6,16 +6,22 @@ import { useState } from "react";
 
 import { AssessmentHistory, SESSION_STATUS_LABELS } from "@/components/assessment-history";
 import {
-  DashboardBanner,
   ExamTabs,
   FocusPanels,
+  NextStepPanel,
   SkillMap,
-  StandingCard,
-  StandingMetrics,
+  StandingSummary,
+  StartPanel,
 } from "@/components/dashboard-overview";
-import { Icon } from "@/components/icon";
 import { ErrorNotice, Loading } from "@/components/status";
-import { getDashboard, isApiError, listAssessmentHistory, type SessionStatus } from "@/lib/api";
+import {
+  getDashboard,
+  isApiError,
+  listAssessmentHistory,
+  listExams,
+  type SessionStatus,
+} from "@/lib/api";
+import { firstName } from "@/lib/dashboard-view";
 import { useCurrentUser, useRequireUser } from "@/lib/session";
 
 const PAGE_SIZE = 10;
@@ -40,120 +46,118 @@ export default function DashboardPage() {
 
   const exams = dashboard.data?.exams ?? [];
   const selected = exams.find((item) => item.exam.id === chosenExamId) ?? exams[0];
+  const isNewStudent = dashboard.isSuccess && !selected;
+  // A first visit with a single exam goes straight to its free diagnostic.
+  const catalog = useQuery({ queryKey: ["exams"], queryFn: listExams, enabled: isNewStudent });
+  const onlyExam = catalog.data?.items.length === 1 ? catalog.data.items[0] : undefined;
+  const name = firstName(user?.displayName);
 
   return (
     <main id="main-content" className="page page--wide dash">
-      <div className="dash-top">
-        <DashboardBanner progress={selected} />
-        {selected ? <StandingCard progress={selected} /> : null}
-        {dashboard.isSuccess && !selected ? (
-          <section className="dash-card standing standing--locked" aria-labelledby="start-title">
-            <p className="eyebrow">خطوتك الأولى</p>
-            <h2 id="start-title">اختر اختبارك وابدأ</h2>
-            <p className="muted small">
-              التشخيص المصغّر مجاني، ويعطيك صورة أولى عن مستواك في كل قسم.
-            </p>
-            <div className="standing__actions">
-              <Link href="/exams" className="btn">
-                استكشف الاختبارات <Icon name="arrow" />
-              </Link>
-            </div>
-          </section>
+      <header className="dash-head">
+        <div>
+          <h1>{name ? `مرحبًا، ${name}` : "مرحبًا بك"}</h1>
+          <p className="muted">
+            {selected
+              ? selected.standing
+                ? `ملخص مستواك في ${selected.exam.nameAr}`
+                : selected.exam.nameAr
+              : "هذه مساحتك: نتائجك وجلساتك وخطوتك التالية."}
+          </p>
+        </div>
+        {selected ? (
+          <ExamTabs
+            exams={exams}
+            selectedId={selected.exam.id}
+            onSelect={(examId) => setChosenExamId(examId)}
+          />
         ) : null}
-      </div>
+      </header>
 
       {dashboard.isPending && user ? <Loading /> : null}
       {dashboard.isError ? <ErrorNotice error={dashboard.error} /> : null}
 
-      {selected ? (
+      {selected ? <NextStepPanel progress={selected} /> : null}
+      {isNewStudent ? (
+        <StartPanel diagnosticHref={onlyExam ? `/exams/${onlyExam.id}/diagnostic` : "/exams"} />
+      ) : null}
+
+      {selected?.standing ? (
         <>
-          <div className="dash-section-head">
-            <h2>
-              {selected.standing ? "ملخص مستواك في" : "اختبارك:"} {selected.exam.nameAr}
-            </h2>
-            <ExamTabs
-              exams={exams}
-              selectedId={selected.exam.id}
-              onSelect={(examId) => setChosenExamId(examId)}
-            />
+          <StandingSummary progress={selected} />
+          <div className="dash-grid">
+            <SkillMap examId={selected.exam.id} />
+            <FocusPanels progress={selected} />
           </div>
-          <StandingMetrics progress={selected} />
-          {selected.standing ? (
-            <div className="dash-grid">
-              <SkillMap examId={selected.exam.id} />
-              <FocusPanels progress={selected} />
-            </div>
-          ) : null}
         </>
       ) : null}
 
-      <section className="history-panel" aria-labelledby="history-heading">
-        <div className="history-toolbar">
-          <h2 id="history-heading">
-            <Icon name="clock" />
-            آخر نشاطاتك
-          </h2>
-          <div className="history-filter">
-            <label htmlFor="session-status">حالة الجلسة</label>
-            <select
-              id="session-status"
-              className="field__input"
-              value={status}
-              onChange={(event) => {
-                setStatus(event.target.value as SessionStatus | "");
-                setOffset(0);
-              }}
-            >
-              <option value="">كل الجلسات</option>
-              {Object.entries(SESSION_STATUS_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+      {isNewStudent ? null : (
+        <section className="history-panel" aria-labelledby="history-heading">
+          <div className="history-toolbar">
+            <h2 id="history-heading">جلساتك</h2>
+            <div className="history-filter">
+              <label htmlFor="session-status">حالة الجلسة</label>
+              <select
+                id="session-status"
+                className="field__input"
+                value={status}
+                onChange={(event) => {
+                  setStatus(event.target.value as SessionStatus | "");
+                  setOffset(0);
+                }}
+              >
+                <option value="">كل الجلسات</option>
+                {Object.entries(SESSION_STATUS_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
 
-        {identity.isError ? <ErrorNotice error={identity.error} /> : null}
-        {!identity.isError && history.isPending ? <Loading /> : null}
-        {history.isError ? (
-          <ErrorNotice error={history.error}>
-            {isApiError(history.error, "UNAUTHENTICATED") ? (
-              <Link href="/login">تسجيل الدخول مجددًا</Link>
-            ) : (
-              <button type="button" className="btn btn--ghost" onClick={() => history.refetch()}>
-                إعادة المحاولة
+          {identity.isError ? <ErrorNotice error={identity.error} /> : null}
+          {!identity.isError && history.isPending ? <Loading /> : null}
+          {history.isError ? (
+            <ErrorNotice error={history.error}>
+              {isApiError(history.error, "UNAUTHENTICATED") ? (
+                <Link href="/login">تسجيل الدخول مجددًا</Link>
+              ) : (
+                <button type="button" className="btn btn--ghost" onClick={() => history.refetch()}>
+                  إعادة المحاولة
+                </button>
+              )}
+            </ErrorNotice>
+          ) : null}
+          {user && !identity.isError && history.isSuccess ? (
+            <AssessmentHistory items={history.data.items} />
+          ) : null}
+          {offset > 0 || history.data?.page.hasMore ? (
+            <nav className="pagination" aria-label="صفحات سجل الجلسات">
+              <button
+                type="button"
+                className="btn btn--ghost btn--small"
+                disabled={offset === 0 || history.isFetching}
+                onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}
+              >
+                السابق
               </button>
-            )}
-          </ErrorNotice>
-        ) : null}
-        {user && !identity.isError && history.isSuccess ? (
-          <AssessmentHistory items={history.data.items} />
-        ) : null}
-        {offset > 0 || history.data?.page.hasMore ? (
-          <nav className="pagination" aria-label="صفحات سجل الجلسات">
-            <button
-              type="button"
-              className="btn btn--ghost btn--small"
-              disabled={offset === 0 || history.isFetching}
-              onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}
-            >
-              السابق
-            </button>
-            <span className="small" aria-live="polite">
-              الصفحة {Math.floor(offset / PAGE_SIZE) + 1}
-            </span>
-            <button
-              type="button"
-              className="btn btn--ghost btn--small"
-              disabled={!history.data?.page.hasMore || history.isFetching || history.isError}
-              onClick={() => setOffset((value) => value + PAGE_SIZE)}
-            >
-              التالي
-            </button>
-          </nav>
-        ) : null}
-      </section>
+              <span className="small" aria-live="polite">
+                الصفحة {Math.floor(offset / PAGE_SIZE) + 1}
+              </span>
+              <button
+                type="button"
+                className="btn btn--ghost btn--small"
+                disabled={!history.data?.page.hasMore || history.isFetching || history.isError}
+                onClick={() => setOffset((value) => value + PAGE_SIZE)}
+              >
+                التالي
+              </button>
+            </nav>
+          ) : null}
+        </section>
+      )}
     </main>
   );
 }

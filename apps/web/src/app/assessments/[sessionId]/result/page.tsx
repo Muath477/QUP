@@ -68,7 +68,7 @@ export default function ResultPage() {
               )}
             </section>
           ) : session.data ? (
-            <section className="notice notice--success stack">
+            <section className="card stack">
               <p>أنت مشترك في هذا الاختبار. تابع من حيث وصلت؛ رحلتك كلها في ملف مهاراتك.</p>
               <div className="row">
                 {next ? (
@@ -85,7 +85,7 @@ export default function ResultPage() {
         </>
       ) : null}
       <p>
-        <Link href="/exams" className="text-link">
+        <Link href="/exams" className="text-link text-link--back">
           العودة إلى الاختبارات <Icon name="arrow" />
         </Link>
       </p>
@@ -102,10 +102,8 @@ function Summary({ result }: { result: PreliminaryResult }) {
           <p>{`الإجابات الصحيحة: ${result.score.correct} من ${result.score.total}`}</p>
         </div>
         <div>
-          <h2>خطوة أنجزتها، وصورة أوضح اكتشفتها.</h2>
-          <p>
-            المستوى التشخيصي: <span className="badge">{result.level.label}</span>
-          </p>
+          <p className="result-overview__label">المستوى التشخيصي</p>
+          <h2>{result.level.label}</h2>
           <p className="result-note">
             هذه قراءة أولية لأدائك في التشخيص المصغّر، وليست درجة متوقعة في الاختبار الرسمي.
           </p>
@@ -113,10 +111,7 @@ function Summary({ result }: { result: PreliminaryResult }) {
       </section>
       <div className="result-columns">
         <section className="card stack">
-          <div className="row">
-            <Icon name="check" />
-            <h2>نقاط القوة</h2>
-          </div>
+          <h2>نقاط القوة</h2>
           {result.strengths.length ? (
             <ul className="list">
               {result.strengths.map((entry) => (
@@ -131,10 +126,7 @@ function Summary({ result }: { result: PreliminaryResult }) {
           )}
         </section>
         <section className="card stack">
-          <div className="row">
-            <Icon name="compass" />
-            <h2>تحتاج إلى تدريب</h2>
-          </div>
+          <h2>تحتاج إلى تدريب</h2>
           {result.weaknesses.length ? (
             <ul className="list">
               {result.weaknesses.map((entry) => (
