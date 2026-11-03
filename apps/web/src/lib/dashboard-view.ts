@@ -1,4 +1,4 @@
-import type { SkillProfile } from "./api";
+import type { MasteryState, SkillProfile } from "./api";
 
 /**
  * Presentation helpers for the dashboard. They only reshape what the API
@@ -34,4 +34,20 @@ export function skillStateSegments(
       count: Math.max(0, summary.skills - summary.assessed),
     },
   ];
+}
+
+/** Which tile a mastery state draws as. UNCERTAIN was measured but too thinly to call: it reads as developing. */
+export function tileState(state: MasteryState): SkillStateKey {
+  switch (state) {
+    case "MASTERED":
+      return "mastered";
+    case "READY_FOR_REASSESSMENT":
+      return "ready";
+    case "GAP":
+      return "gap";
+    case "UNASSESSED":
+      return "unassessed";
+    default:
+      return "developing";
+  }
 }

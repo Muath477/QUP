@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { firstName, skillStateSegments } from "../src/lib/dashboard-view";
+import { firstName, skillStateSegments, tileState } from "../src/lib/dashboard-view";
 
 const summary = (skills: number, assessed: number) => ({
   skills,
@@ -38,5 +38,16 @@ describe("dashboard view", () => {
     expect(firstName("  فهد  ")).toBe("فهد");
     expect(firstName("   ")).toBeNull();
     expect(firstName(null)).toBeNull();
+  });
+});
+
+describe("tileState", () => {
+  it("draws each mastery state as one of the five tile colours", () => {
+    expect(tileState("MASTERED")).toBe("mastered");
+    expect(tileState("READY_FOR_REASSESSMENT")).toBe("ready");
+    expect(tileState("GAP")).toBe("gap");
+    expect(tileState("UNASSESSED")).toBe("unassessed");
+    expect(tileState("DEVELOPING")).toBe("developing");
+    expect(tileState("UNCERTAIN")).toBe("developing");
   });
 });

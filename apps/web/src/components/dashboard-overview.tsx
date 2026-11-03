@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import type { CSSProperties } from "react";
 import { type ExamProgress, getSkillProfile } from "@/lib/api";
 import { MASTERY_STATE_LABELS, percentText } from "@/lib/mastery-labels";
 import { improvementText, nextStepAction, nextStepLink, nextStepReason } from "@/lib/next-step";
-import { Contours } from "./contours";
+import { Fold } from "./fold";
 import { Icon } from "./icon";
-import { SkillCounts } from "./skill-counts";
-import { ErrorNotice, Loading } from "./status";
+import { SkillRow, StateWord } from "./skill-row";
+import { StandingTiles } from "./skill-tiles";
+import { ErrorNotice } from "./status";
 
 /**
  * The student dashboard's blocks (UI_BRAND.md "Student Dashboard Principle"):
@@ -16,35 +16,42 @@ import { ErrorNotice, Loading } from "./status";
  * here beyond formatting.
  */
 
+const GAPS_SHOWN = 5;
+
+function useSkillProfile(examId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["skill-profile", examId],
+    queryFn: () => getSkillProfile(examId),
+    enabled,
+  });
+}
+
 /**
- * The one thing to do next, chosen by the API. Secondary routes sit beside it
- * as quiet links, so the page never offers three buttons to the same place.
+ * The one thing to do next, chosen by the API. Secondary routes sit under it
+ * as quiet links, so the card never offers three buttons to the same place.
  */
-export function NextStepPanel({ progress }: { progress: ExamProgress }) {
+export function NextStepCard({ progress }: { progress: ExamProgress }) {
   const { exam, standing } = progress;
   const next = nextStepLink(progress.nextStep, exam.id);
   return (
-    <section className="next-step" aria-labelledby="next-step-title">
-      <Contours className="next-step__contours" />
-      <div className="next-step__copy">
-        <p className="next-step__label">خطوتك التالية</p>
-        <h2 id="next-step-title">{next.label}</h2>
-        <p>{nextStepReason(progress.nextStep)}</p>
-      </div>
-      <div className="next-step__actions">
-        <Link href={next.href} className="btn btn--gold btn--large">
+    <section className="next-card" aria-labelledby="next-step-title">
+      <p className="next-card__label">خطوتك التالية</p>
+      <h2 id="next-step-title">{next.label}</h2>
+      <p className="next-card__why">{nextStepReason(progress.nextStep)}</p>
+      <div className="next-card__actions">
+        <Link href={next.href} className="btn btn--light btn--large btn--block">
           {nextStepAction(progress.nextStep)} <Icon name="arrow" />
         </Link>
-        {standing ? (
-          <div className="next-step__links">
-            <Link href={`/exams/${exam.id}/mistakes`}>مراجعة أخطائي</Link>
-            <Link href={`/exams/${exam.id}/mock-exam`}>اختبار محاكٍ</Link>
-          </div>
-        ) : (
-          <div className="next-step__links">
+        <div className="next-card__links">
+          {standing ? (
+            <>
+              <Link href={`/exams/${exam.id}/mistakes`}>مراجعة أخطائي</Link>
+              <Link href={`/exams/${exam.id}/mock-exam`}>اختبار محاكٍ</Link>
+            </>
+          ) : (
             <Link href="/subscriptions">الباقات</Link>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </section>
   );
@@ -53,18 +60,17 @@ export function NextStepPanel({ progress }: { progress: ExamProgress }) {
 /** The first visit: no exam yet, so the only step is the free diagnostic. */
 export function StartPanel({ diagnosticHref }: { diagnosticHref: string }) {
   return (
-    <section className="next-step" aria-labelledby="next-step-title">
-      <Contours className="next-step__contours" />
-      <div className="next-step__copy">
-        <p className="next-step__label">خطوتك الأولى</p>
+    <section className="next-card next-card--wide" aria-labelledby="next-step-title">
+      <div>
+        <p className="next-card__label">خطوتك الأولى</p>
         <h2 id="next-step-title">ابدأ التشخيص المصغّر المجاني</h2>
-        <p>أسئلة قليلة من أقسام الاختبار تعطيك قراءة أولى لمستواك، وتظهر نتيجتها فور إكمالها.</p>
+        <p className="next-card__why">
+          أسئلة قليلة من أقسام الاختبار تعطيك قراءة أولى لمستواك، وتظهر نتيجتها فور إكمالها.
+        </p>
       </div>
-      <div className="next-step__actions">
-        <Link href={diagnosticHref} className="btn btn--gold btn--large">
-          ابدأ التشخيص <Icon name="arrow" />
-        </Link>
-      </div>
+      <Link href={diagnosticHref} className="btn btn--light btn--large">
+        ابدأ التشخيص <Icon name="arrow" />
+      </Link>
     </section>
   );
 }
@@ -97,122 +103,123 @@ export function ExamTabs({
   );
 }
 
-/** Where the student stands: every skill of the exam as one cell, coloured by state. */
-export function StandingSummary({ progress }: { progress: ExamProgress }) {
-  return progress.standing ? <SkillCounts summary={progress.standing.summary} /> : null;
-}
-
-/** Each domain's skills with their measured mastery, from the skill profile. */
-export function SkillMap({ examId }: { examId: string }) {
-  const profile = useQuery({
-    queryKey: ["skill-profile", examId],
-    queryFn: () => getSkillProfile(examId),
-  });
+/** Where the student stands: every skill as one tile, split by domain. */
+export function StandingPanel({ progress }: { progress: ExamProgress }) {
+  const profile = useSkillProfile(progress.exam.id, progress.standing !== null);
+  if (!progress.standing) return null;
   return (
-    <section className="dash-card skill-map" aria-labelledby="skill-map-title">
-      <div className="dash-card__head">
-        <h2 id="skill-map-title">خريطة مهاراتك</h2>
-        <Link href={`/exams/${examId}/profile`} className="text-link">
-          الملف الكامل <Icon name="chevron" />
-        </Link>
-      </div>
-      {profile.isPending ? <Loading /> : null}
-      {profile.isError ? <ErrorNotice error={profile.error} /> : null}
-      {profile.data ? (
-        <div className="skill-map__domains">
-          {profile.data.domains.map((domain) => (
-            <section key={domain.id} className="skill-domain" aria-label={domain.name}>
-              <h3>{domain.name}</h3>
-              <ul>
-                {domain.skills.map((skill) => (
-                  <li key={skill.id}>
-                    <div className="skill-domain__row">
-                      <span>{skill.name}</span>
-                      <bdi>{skill.mastery === null ? "—" : percentText(skill.mastery)}</bdi>
-                    </div>
-                    <span className="profile-bar" aria-hidden="true">
-                      <span style={{ "--share": skill.mastery ?? 0 } as CSSProperties} />
-                    </span>
-                    <span className={`mastery-badge mastery-badge--${skill.state.toLowerCase()}`}>
-                      {MASTERY_STATE_LABELS[skill.state]}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
-      ) : null}
+    <section className="panel" aria-labelledby="standing-title">
+      <h2 id="standing-title" className="panel__label">
+        أين أنت الآن
+      </h2>
+      <StandingTiles summary={progress.standing.summary} domains={profile.data?.domains} />
     </section>
   );
 }
 
-export function FocusPanels({ progress }: { progress: ExamProgress }) {
+/** The gaps the engine ranked, most urgent first, each with its measured level. */
+export function GapsPanel({ progress }: { progress: ExamProgress }) {
+  const examId = progress.exam.id;
+  const profile = useSkillProfile(examId, progress.standing !== null);
+  if (!progress.standing) return null;
+  const skills = new Map(
+    (profile.data?.domains ?? []).flatMap((domain) =>
+      domain.skills.map((skill) => [skill.name, skill] as const),
+    ),
+  );
+  const gaps = (profile.data?.gaps ?? progress.standing.gaps).slice(0, GAPS_SHOWN);
+  return (
+    <section className="panel" aria-labelledby="gaps-title">
+      <div className="panel__head">
+        <h2 id="gaps-title">أين تخسر درجات</h2>
+        <Link href={`/exams/${examId}/profile`} className="text-link">
+          كل المهارات <Icon name="chevron" />
+        </Link>
+      </div>
+      {profile.isError ? <ErrorNotice error={profile.error} /> : null}
+      {gaps.length ? (
+        <ol className="skill-rows">
+          {gaps.map((gap, index) => {
+            const skill = skills.get(gap.skillName);
+            return (
+              <SkillRow
+                key={gap.skillName}
+                rank={index + 1}
+                name={gap.skillName}
+                state={<StateWord tone="gap">فجوة</StateWord>}
+                meta={skill ? `${skill.evidenceCount} إجابة مقيسة` : undefined}
+                share={skill?.mastery}
+                figure={skill?.mastery == null ? undefined : percentText(skill.mastery)}
+              />
+            );
+          })}
+        </ol>
+      ) : (
+        <p className="panel__empty">لا فجوات مقيسة الآن. تابع التدريب لتبقى كذلك.</p>
+      )}
+    </section>
+  );
+}
+
+/** Proven strengths carry the gold fold; ready skills wait for their reassessment. */
+export function StrengthsPanel({ progress }: { progress: ExamProgress }) {
   const { standing } = progress;
   if (!standing) return null;
+  const mastered = standing.strengths.filter((entry) => entry.state === "MASTERED");
+  const others = standing.strengths.filter((entry) => entry.state !== "MASTERED");
   return (
-    <div className="focus-panels">
-      <section className="dash-card" aria-labelledby="gaps-title">
-        <h2 id="gaps-title" className="dash-card__title">
-          أولويات التدريب
-        </h2>
-        {standing.gaps.length ? (
-          <ol className="rank-list rank-list--gaps">
-            {standing.gaps.map((gap, index) => (
-              <li key={gap.skillName}>
-                <span className="rank-list__index">{index + 1}</span>
-                <span>{gap.skillName}</span>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p className="small muted">لا فجوات مقيسة الآن.</p>
-        )}
-      </section>
-      <section className="dash-card" aria-labelledby="strengths-title">
-        <h2 id="strengths-title" className="dash-card__title">
-          نقاط قوتك
-        </h2>
-        {standing.strengths.length ? (
-          <ul className="rank-list">
-            {standing.strengths.map((strength) => (
-              <li key={strength.skillName}>
-                <Icon name="check" />
-                <span>{strength.skillName}</span>
-                <bdi className="small">
-                  {strength.state === "MASTERED"
-                    ? MASTERY_STATE_LABELS.MASTERED
-                    : percentText(strength.mastery)}
-                </bdi>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="small muted">
-            لا مهارة تجاوزت حد القوة بعد. تظهر هنا حين ترتفع نسبتك في مهارة وتثبت.
-          </p>
-        )}
-      </section>
+    <section className="panel" aria-labelledby="strengths-title">
+      <div className="panel__head">
+        <h2 id="strengths-title">نقاط قوتك</h2>
+      </div>
+      {standing.strengths.length ? (
+        <ul className="skill-rows">
+          {mastered.map((entry) => (
+            <SkillRow
+              key={entry.skillName}
+              name={entry.skillName}
+              state={
+                <>
+                  <Fold />
+                  <StateWord tone="earned">{MASTERY_STATE_LABELS.MASTERED}</StateWord>
+                </>
+              }
+              figure={percentText(entry.mastery)}
+            />
+          ))}
+          {others.map((entry) => (
+            <SkillRow
+              key={entry.skillName}
+              name={entry.skillName}
+              state={
+                entry.state === "READY_FOR_REASSESSMENT" ? (
+                  <StateWord tone="ready">جاهزة لإعادة القياس</StateWord>
+                ) : undefined
+              }
+              figure={percentText(entry.mastery)}
+            />
+          ))}
+        </ul>
+      ) : (
+        <p className="panel__empty">
+          لا مهارة تجاوزت حد القوة بعد. تظهر هنا حين ترتفع نسبتك في مهارة وتثبت.
+        </p>
+      )}
       {standing.improvements.length ? (
-        <section className="dash-card" aria-labelledby="improvements-title">
-          <h2 id="improvements-title" className="dash-card__title">
-            تقدّمك هذا الأسبوع
-          </h2>
-          <ul className="rank-list">
+        <>
+          <h3 className="panel__sub">تقدّمك هذا الأسبوع</h3>
+          <ul className="skill-rows">
             {standing.improvements.map((change) => (
-              <li key={change.nodeName}>
-                <span>{change.nodeName}</span>
-                <bdi className="small rank-list__gain">
-                  {improvementText(change.before, change.after)}
-                </bdi>
-                <bdi className="small muted">
-                  {`${percentText(change.before)} ← ${percentText(change.after)}`}
-                </bdi>
-              </li>
+              <SkillRow
+                key={change.nodeName}
+                name={change.nodeName}
+                meta={`${percentText(change.before)} ← ${percentText(change.after)}`}
+                figure={improvementText(change.before, change.after)}
+              />
             ))}
           </ul>
-        </section>
+        </>
       ) : null}
-    </div>
+    </section>
   );
 }
