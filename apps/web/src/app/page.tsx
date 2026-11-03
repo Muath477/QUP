@@ -1,48 +1,40 @@
-import Image from "next/image";
 import Link from "next/link";
-import { Icon, type IconName } from "@/components/icon";
+import { Icon } from "@/components/icon";
 import { SampleSkillMap } from "@/components/sample-skill-map";
 
 /** What sets QUP apart: product rules the platform enforces, not marketing numbers. */
-const principles: { icon: IconName; title: string; body: string }[] = [
+const principles: { title: string; body: string }[] = [
   {
-    icon: "target",
     title: "كل سؤال يقيس مهارة محددة",
     body: "الأسئلة مربوطة بمهارات الاختبار، فتعرف بالضبط أي مهارة رفعت نتيجتك وأيها خذلتك.",
   },
   {
-    icon: "compass",
     title: "تدريب يختار أسئلتك بسبب واضح",
     body: "كل سؤال في التدريب مختار لمهارة تحتاجها الآن، ونعرض لك اسمها قبل أن تجيب.",
   },
   {
-    icon: "shield",
     title: "الإتقان يُثبت ولا يُفترض",
     body: "لا نعتبر المهارة متقنة لأن نسبتك ارتفعت؛ نؤكدها بإعادة قياس تنجح فيها.",
   },
 ];
 
-const steps: { icon: IconName; title: string; body: string; note: string }[] = [
+const steps: { title: string; body: string; note: string }[] = [
   {
-    icon: "compass",
     title: "التشخيص المصغّر",
     body: "أسئلة قليلة مختارة من أقسام الاختبار، تعطيك قراءة أولى لمستواك.",
     note: "مجاني",
   },
   {
-    icon: "layers",
     title: "ملف مهاراتك",
     body: "كل مهارة بحالتها: متقنة، أو قيد التحسّن، أو فجوة تحتاج تركيزًا.",
     note: "ضمن الباقة",
   },
   {
-    icon: "target",
     title: "تدريب على الفواقد",
     body: "جلسات قصيرة تبدأ بأكبر فجوة عندك، وتنتقل معك كلما تحسّنت.",
     note: "ضمن الباقة",
   },
   {
-    icon: "flag",
     title: "إعادة القياس",
     body: "حين تصبح المهارة جاهزة، تثبت إتقانها بأسئلة جديدة عليك.",
     note: "ضمن الباقة",
@@ -83,15 +75,6 @@ export default function LandingPage() {
   return (
     <main id="main-content" className="home">
       <section className="home-hero" aria-labelledby="home-title">
-        <Image
-          src="/brand/qup-mountain-journey.webp"
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="home-hero__photo"
-        />
-        <div className="home-hero__shade" aria-hidden="true" />
         <div className="home-hero__inner">
           <div className="home-hero__copy">
             <p className="eyebrow eyebrow--on-dark">تشخيص · تدريب · إعادة قياس</p>
@@ -142,9 +125,6 @@ export default function LandingPage() {
         <ul className="home-principles__list">
           {principles.map((item) => (
             <li key={item.title}>
-              <span className="glyph">
-                <Icon name={item.icon} />
-              </span>
               <h3>{item.title}</h3>
               <p>{item.body}</p>
             </li>
@@ -162,7 +142,6 @@ export default function LandingPage() {
             <li key={step.title}>
               <div className="home-steps__marker">
                 <span className="home-steps__index">{index + 1}</span>
-                <Icon name={step.icon} />
               </div>
               <h3>{step.title}</h3>
               <p>{step.body}</p>
@@ -188,24 +167,33 @@ export default function LandingPage() {
             أنشئ حسابك <Icon name="arrow" />
           </Link>
         </div>
-        <div className="home-report__visual">
-          <Image
-            src="/brand/qup-mountain-journey-1200.webp"
-            alt=""
-            fill
-            sizes="(max-width: 900px) 100vw, 50vw"
-            className="home-report__photo"
-          />
-          <div className="home-report__panel">
-            <span className="sample-tag">مثال توضيحي</span>
-            <p className="home-report__panel-label">خطوتك التالية</p>
-            <strong>تدرّب على: استيعاب المقروء</strong>
-            <p className="home-report__panel-note">أكبر فجوة في ملفك الآن، وفيها 4 أسئلة تنتظرك.</p>
-            <span className="btn btn--gold btn--small" aria-hidden="true">
-              ابدأ التدريب <Icon name="arrow" />
+        <figure className="home-report__visual" aria-label="مثال توضيحي من لوحة الطالب">
+          <span className="sample-tag">مثال توضيحي</span>
+          <div className="next-step next-step--sample">
+            <div className="next-step__copy">
+              <p className="next-step__label">خطوتك التالية</p>
+              <p className="next-step__title">تدرّب على: استيعاب المقروء</p>
+              <p>أحوج مهارة إلى التدريب في ملفك الآن.</p>
+            </div>
+            <span className="btn btn--gold" aria-hidden="true">
+              ابدأ الآن <Icon name="arrow" />
             </span>
           </div>
-        </div>
+          <dl className="stat-row stat-row--sample">
+            <div className="stat">
+              <dt>مهارات قيست</dt>
+              <dd>9 من 12</dd>
+            </div>
+            <div className="stat" data-tone="success">
+              <dt>متقنة</dt>
+              <dd>3</dd>
+            </div>
+            <div className="stat" data-tone="danger">
+              <dt>فجوات</dt>
+              <dd>4</dd>
+            </div>
+          </dl>
+        </figure>
       </section>
 
       <section className="home-faq" id="questions" aria-labelledby="faq-title">

@@ -274,6 +274,29 @@ Questions use the focused page width, readable position metadata, restrained pro
 
 Loading uses a readable live status and quiet static skeleton lines. Errors use a labeled danger notice with a useful recovery action when available. Empty states pair an icon with a clear heading, short explanation and relevant next step. Not-found/error pages retain the same typography, spacious alignment and button states. Test hover contrast on both light and dark surroundings.
 
+## Revision 2026-11-03: content-led, no decoration
+
+The student workspace and public pages were reworked so the product, not ornament, carries the
+page. The rules below supersede anything above that conflicts with them.
+
+- **No photography in the product.** The mountain journey images stay in `public/brand/` for
+  campaigns, but no page uses them: the hero is flat navy with the sample skill map as its visual,
+  sign-in pages use a navy panel with real first steps, and the sidebar has no promo card.
+- **One next step.** The dashboard opens with the student's name, then a flat navy "next step"
+  band (`.next-step`): the API's step as the heading, one sentence on why
+  (`nextStepReason`), one gold button (`nextStepAction`) and at most two quiet text links. The
+  first visit shows only the free diagnostic, linked straight to it when one exam exists.
+- **Counts are a ruled row.** `.stat-row` (dashboard and skill profile) and `.profile-summary`
+  (results, mistakes, admin metrics) are one bordered row divided by hairlines. No icon tiles, no
+  rings.
+- **Repeated records are divided rows.** `.list__item`, history rows, gap lists and the exam
+  catalogue (`.exam-list`) use hairline separators; colour sits on the status text only.
+- **Headings carry no icons**, eyebrows are plain muted labels (gold only on navy), and cards are
+  flat (no default shadow, no glow pseudo-elements, no gradient bars).
+- **Shell.** Desktop: the sidebar holds navigation and, at its foot, the signed-in account and
+  sign-out; there is no greeting bar. Phones: a slim top bar (logo, avatar) and a bottom tab bar.
+  The admin header's sign-out becomes icon-only on phones.
+
 ## Do's and Don'ts
 
 ### Do:
