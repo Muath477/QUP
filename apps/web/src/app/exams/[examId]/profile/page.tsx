@@ -4,10 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { type CSSProperties, Suspense } from "react";
-import { SkillCounts } from "@/components/dashboard-overview";
 import { EmptyState } from "@/components/empty-state";
+import { Fold } from "@/components/fold";
 import { Icon } from "@/components/icon";
 import { PageHeading } from "@/components/page-heading";
+import { StandingTiles } from "@/components/skill-tiles";
 import { ErrorNotice, Loading } from "@/components/status";
 import {
   getFullReassessmentStatus,
@@ -87,7 +88,9 @@ function Profile({ profile }: { profile: SkillProfile }) {
         <TrainingDone examId={profile.exam.id} />
       </Suspense>
 
-      <SkillCounts summary={summary} />
+      <section className="panel" aria-label="أين أنت الآن">
+        <StandingTiles summary={summary} domains={profile.domains} />
+      </section>
 
       {summary.assessed === 0 ? (
         <EmptyState
@@ -185,6 +188,7 @@ function NodeRow({ node }: { node: ProfileNode }) {
     <div className="profile-node">
       <div className="profile-node__head">
         <strong>{node.name}</strong>
+        {node.state === "MASTERED" ? <Fold /> : null}
         <span className={`mastery-badge mastery-badge--${node.state.toLowerCase()}`}>
           {MASTERY_STATE_LABELS[node.state]}
         </span>

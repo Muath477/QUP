@@ -7,11 +7,11 @@ import { useState } from "react";
 import { AssessmentHistory, SESSION_STATUS_LABELS } from "@/components/assessment-history";
 import {
   ExamTabs,
-  FocusPanels,
-  NextStepPanel,
-  SkillMap,
-  StandingSummary,
+  GapsPanel,
+  NextStepCard,
+  StandingPanel,
   StartPanel,
+  StrengthsPanel,
 } from "@/components/dashboard-overview";
 import { ErrorNotice, Loading } from "@/components/status";
 import {
@@ -55,16 +55,16 @@ export default function DashboardPage() {
   return (
     <main id="main-content" className="page page--wide dash">
       <header className="dash-head">
-        <div>
-          <h1>{name ? `مرحبًا، ${name}` : "مرحبًا بك"}</h1>
-          <p className="muted">
-            {selected
-              ? selected.standing
-                ? `ملخص مستواك في ${selected.exam.nameAr}`
-                : selected.exam.nameAr
-              : "هذه مساحتك: نتائجك وجلساتك وخطوتك التالية."}
-          </p>
-        </div>
+        <p className="dash-head__line">
+          {name ? `مرحبًا، ${name}` : "مرحبًا بك"}
+          {selected ? (
+            <>
+              <span aria-hidden="true"> · </span>
+              <span className="dash-head__exam">{selected.exam.nameAr}</span>
+            </>
+          ) : null}
+        </p>
+        <h1 className="visually-hidden">لوحتك</h1>
         {selected ? (
           <ExamTabs
             exams={exams}
@@ -77,19 +77,22 @@ export default function DashboardPage() {
       {dashboard.isPending && user ? <Loading /> : null}
       {dashboard.isError ? <ErrorNotice error={dashboard.error} /> : null}
 
-      {selected ? <NextStepPanel progress={selected} /> : null}
       {isNewStudent ? (
         <StartPanel diagnosticHref={onlyExam ? `/exams/${onlyExam.id}/diagnostic` : "/exams"} />
       ) : null}
 
+      {selected ? (
+        <div className="dash-row" data-solo={selected.standing ? undefined : true}>
+          <NextStepCard progress={selected} />
+          <StandingPanel progress={selected} />
+        </div>
+      ) : null}
+
       {selected?.standing ? (
-        <>
-          <StandingSummary progress={selected} />
-          <div className="dash-grid">
-            <SkillMap examId={selected.exam.id} />
-            <FocusPanels progress={selected} />
-          </div>
-        </>
+        <div className="dash-row dash-row--split">
+          <GapsPanel progress={selected} />
+          <StrengthsPanel progress={selected} />
+        </div>
       ) : null}
 
       {isNewStudent ? null : (

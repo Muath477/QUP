@@ -15,12 +15,16 @@
   --color-gold: #d39a27;
   --color-gold-strong: #b98216;
   --color-gold-surface: #fbf3e2;
+  /* Text in gold, only on gold-surface (5.1:1). */
+  --color-gold-ink: #8a5f0c;
   --color-white: #ffffff;
   --color-surface: #f3f6fa;
   --color-surface-raised: #f8fafc;
   --color-blue-surface: #e9f2fb;
   --color-border: #e1e8f0;
   --color-border-strong: #cdd8e4;
+  /* Unmeasured ticks and quiet marks that must still read (3.3:1 on white). */
+  --color-rule-strong: #7d8fa3;
   --color-text: #13283f;
   --color-text-muted: #5b6b7d;
   --color-success: #1d7a50;
@@ -48,9 +52,11 @@
   --space-6: 1.5rem;
   --space-8: 2rem;
   --space-12: 3rem;
-  --radius-small: 0.625rem;
-  --radius: 0.875rem;
-  --radius-large: 1.25rem;
+  --radius-small: 0.375rem;
+  --radius: 0.625rem;
+  --radius-large: 0.875rem;
+  /* The fold's corners: the logo's cut, barely softened. */
+  --radius-fold: 2px;
   /* Shadows carry the navy hue and one light source, from above. */
   --shadow-sm: 0 1px 2px rgb(8 31 61 / 5%), 0 1px 1px rgb(8 31 61 / 3%);
   --shadow: 0 12px 32px -14px rgb(8 31 61 / 20%), 0 2px 6px rgb(8 31 61 / 4%);
@@ -59,8 +65,13 @@
   --sidebar-width: 16rem;
   --header-height: 5rem;
   --focus-ring: 0 0 0 4px rgb(23 105 170 / 22%);
-  --motion-fast: 180ms;
+  /* Motion: three durations and two curves, used everywhere (see "Motion" below). */
+  --motion-fast: 160ms;
+  --motion-base: 280ms;
+  --motion-slow: 560ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --stagger-step: 60ms;
   --z-header: 20;
   --z-nav: 30;
   --z-skip: 50;
@@ -297,12 +308,13 @@
   :where(.btn:active:not(:disabled)) {
     transform: translateY(1px);
   }
-  :where(.btn--gold) {
-    background: var(--color-gold);
+  /* Gold is earned, never pressed: on a navy band the primary action is white. */
+  :where(.btn--light) {
+    background: var(--color-white);
     color: var(--color-navy);
   }
-  :where(.btn--gold:hover:not(:disabled)) {
-    background: #e0a937;
+  :where(.btn--light:hover:not(:disabled)) {
+    background: var(--color-blue-surface);
     color: var(--color-navy);
   }
   :where(.btn--ghost) {
@@ -414,137 +426,12 @@
   :where(.site-header__actions) {
     gap: 1.25rem;
   }
-
-  /* ---------- Home: hero ---------- */
-  /* A flat navy hero: the type and a real sample of the product carry it. */
-  :where(.home-hero) {
-    background: var(--color-navy);
-    color: var(--color-white);
-  }
-  :where(.home-hero__inner) {
-    width: 100%;
-    max-width: var(--content-width);
-    margin-inline: auto;
-    padding: 4.5rem 2rem 5rem;
-    display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(18rem, 23rem);
-    align-items: center;
-    gap: 4rem;
-  }
-  :where(.home-hero__copy h1) {
-    color: var(--color-white);
-    font-size: clamp(2.2rem, 3.6vw, 3.25rem);
-    line-height: 1.45;
-    font-weight: 800;
-  }
-  :where(.home-hero__copy h1 span) {
-    display: block;
-    margin-top: 0.4rem;
-    color: var(--color-gold);
-    font-size: 0.72em;
-    font-weight: 700;
-    line-height: 1.6;
-  }
-  :where(.home-hero__lead) {
-    max-width: 30rem;
-    margin-block: 1.4rem 2rem;
-    color: rgb(255 255 255 / 80%);
-    font-size: 1.05rem;
-    line-height: 1.95;
-  }
-  :where(.home-hero__actions) {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.85rem;
-  }
-  :where(.home-hero__assurance) {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem 1.4rem;
-    margin: 1.75rem 0 0;
-    padding: 0;
-    list-style: none;
-    color: rgb(255 255 255 / 72%);
-    font-size: 0.8rem;
-  }
-  :where(.home-hero__assurance li) {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-  :where(.home-hero__assurance .icon) {
-    width: 1rem;
-    height: 1rem;
-    color: var(--color-gold);
-  }
-
-  /* Sample skill map (illustrative card) */
-  :where(.sample-map) {
-    margin: 0;
-    padding: 1.35rem;
-    border-radius: var(--radius);
-    background: var(--color-white);
-    color: var(--color-text);
-  }
-  :where(.sample-map__head) {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--color-border);
-  }
-  :where(.sample-map__title) {
-    color: var(--color-navy);
-    font-family: var(--font-heading);
-    font-size: 1rem;
-    font-weight: 700;
-  }
-  :where(.sample-map__sub) {
-    color: var(--color-text-muted);
-    font-size: 0.75rem;
-  }
-  :where(.sample-map__rows) {
-    list-style: none;
-    margin: 0;
-    padding: 0.4rem 0 0;
-  }
-  :where(.sample-map__rows li, .skill-domain li) {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 7.5rem;
-    align-items: center;
-    gap: 0.35rem 0.75rem;
-    padding-block: 0.7rem;
-    border-bottom: 1px solid var(--color-border);
-  }
-  :where(.sample-map__rows li:last-child) {
-    border-bottom: 0;
-  }
-  :where(.sample-map__label) {
-    grid-column: 1 / -1;
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.85rem;
-    font-weight: 600;
-  }
-  :where(.sample-map__label bdi) {
-    color: var(--color-text-muted);
-    font-variant-numeric: tabular-nums;
-  }
   :where(.sample-map .profile-bar) {
     max-width: none;
   }
   :where(.sample-map .mastery-badge, .skill-domain .mastery-badge) {
     justify-self: end;
     font-size: 0.68rem;
-  }
-  :where(.sample-map__foot) {
-    margin-top: 0.75rem;
-    padding: 0.7rem 0.85rem;
-    border-radius: var(--radius-small);
-    background: var(--color-gold-surface);
-    color: var(--color-navy);
-    font-size: 0.8rem;
   }
 
   /* ---------- Home: sections ---------- */
@@ -563,159 +450,6 @@
   }
   :where(.home-section-head > p.muted) {
     margin-top: 0.75rem;
-  }
-  :where(.home-principles) {
-    display: grid;
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.6fr);
-    gap: 4rem;
-    align-items: start;
-  }
-  :where(.home-principles__intro) {
-    position: sticky;
-    top: 2rem;
-  }
-  :where(.home-principles__list) {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  :where(.home-principles__list li) {
-    display: grid;
-    gap: 0.35rem;
-    padding-block: 1.75rem;
-    border-top: 1px solid var(--color-border);
-  }
-  :where(.home-principles__list li:last-child) {
-    border-bottom: 1px solid var(--color-border);
-  }
-  :where(.home-principles__list h3) {
-    font-size: 1.1rem;
-  }
-  :where(.home-principles__list p) {
-    color: var(--color-text-muted);
-    max-width: 52ch;
-  }
-  :where(.home-steps) {
-    max-width: none;
-    padding-inline: max(2rem, calc((100% - var(--content-width)) / 2 + 2rem));
-    background: var(--color-white);
-    border-block: 1px solid var(--color-border);
-  }
-  :where(.home-steps__track) {
-    position: relative;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 2rem;
-  }
-  .home-steps__track::before {
-    content: "";
-    position: absolute;
-    top: 1.25rem;
-    inset-inline: 1.25rem;
-    height: 1px;
-    background: var(--color-border-strong);
-  }
-  :where(.home-steps__track li) {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-  }
-  :where(.home-steps__marker) {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-    color: var(--color-blue);
-  }
-  :where(.home-steps__index) {
-    display: grid;
-    place-items: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 50%;
-    background: var(--color-navy);
-    color: var(--color-white);
-    font-family: var(--font-heading);
-    font-size: 1rem;
-    font-weight: 700;
-    box-shadow: 0 0 0 6px var(--color-white);
-  }
-  :where(.home-steps__track h3) {
-    font-size: 1.05rem;
-  }
-  :where(.home-steps__track p) {
-    color: var(--color-text-muted);
-    font-size: 0.92rem;
-  }
-  :where(.home-steps__note) {
-    width: fit-content;
-    padding: 0.1rem 0.6rem;
-    border-radius: 0.35rem;
-    background: var(--color-surface);
-    color: var(--color-text-muted);
-    font-size: 0.72rem;
-    font-weight: 600;
-  }
-  :where(.home-steps__track li:first-child .home-steps__note) {
-    background: var(--color-gold-surface);
-    color: var(--color-gold-strong);
-  }
-  :where(.home-report) {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-    gap: 4rem;
-    align-items: center;
-  }
-  :where(.home-report__answers) {
-    margin: 2rem 0 2.25rem;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.5rem 2rem;
-  }
-  :where(.home-report__answers > div) {
-    padding-inline-start: 1rem;
-    border-inline-start: 2px solid var(--color-gold);
-  }
-  :where(.home-report__answers dt) {
-    color: var(--color-navy);
-    font-family: var(--font-heading);
-    font-weight: 700;
-  }
-  :where(.home-report__answers dd) {
-    margin: 0.2rem 0 0;
-    color: var(--color-text-muted);
-    font-size: 0.9rem;
-  }
-  :where(.home-report__visual) {
-    margin: 0;
-    padding: 1.5rem;
-    border-radius: var(--radius);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.9rem;
-  }
-  :where(.next-step--sample) {
-    width: 100%;
-    padding: 1.5rem;
-    gap: 1rem 1.5rem;
-  }
-  :where(.next-step__title) {
-    margin-top: 0.15rem;
-    color: var(--color-white);
-    font-family: var(--font-heading);
-    font-size: 1.15rem;
-    font-weight: 700;
-  }
-  :where(.stat-row--sample) {
-    width: 100%;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   :where(.home-faq) {
     display: grid;
@@ -1195,7 +929,8 @@
     border-bottom: 1px solid var(--color-border);
   }
   :where(.page-heading h1) {
-    font-size: 1.75rem;
+    font-size: clamp(1.6rem, 2.2vw, 2.1rem);
+    font-weight: 800;
   }
   :where(.page-heading p) {
     margin-top: 0.25rem;
@@ -1247,119 +982,16 @@
     gap: 0.75rem 1.5rem;
   }
   :where(.dash-head h1) {
-    font-size: 1.75rem;
-    line-height: 1.5;
+    font-size: clamp(1.8rem, 2.6vw, 2.5rem);
+    font-weight: 800;
+    line-height: 1.4;
   }
-  :where(.dash-head p) {
-    margin-top: 0.15rem;
-    font-size: 0.92rem;
-  }
-
-  /* The next step: one flat navy band, one gold action. No photo, no glow. */
-  :where(.next-step) {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 1.25rem 2.5rem;
-    padding: 1.75rem 2rem;
-    border-radius: var(--radius);
-    background: var(--color-navy);
-    color: var(--color-white);
-  }
-  :where(.next-step__label) {
-    color: var(--color-gold);
-    font-size: 0.8rem;
+  :where(.dash-head__exam) {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
     font-weight: 600;
   }
-  :where(.next-step h2) {
-    margin-top: 0.15rem;
-    color: var(--color-white);
-    font-size: 1.4rem;
-    line-height: 1.6;
-  }
-  :where(.next-step__copy > p:last-child) {
-    margin-top: 0.35rem;
-    max-width: 38rem;
-    color: var(--color-on-navy-muted);
-    font-size: 0.9rem;
-  }
-  :where(.next-step__actions) {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.75rem;
-  }
-  :where(.next-step__links) {
-    display: flex;
-    justify-content: center;
-    gap: 1.25rem;
-    font-size: 0.85rem;
-  }
-  :where(.next-step__links a) {
-    color: var(--color-white);
-    text-decoration: underline;
-    text-decoration-color: rgb(255 255 255 / 35%);
-  }
-  :where(.next-step__links a:hover) {
-    text-decoration-color: var(--color-gold);
-  }
 
-  /* Counts as one ruled row, not a grid of icon tiles. */
-  :where(.stat-row) {
-    margin: 0;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    background: var(--color-white);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-  }
-  :where(.stat) {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-    padding: 1.1rem 1.5rem;
-    border-inline-start: 1px solid var(--color-border);
-  }
-  :where(.stat:first-child) {
-    border-inline-start: 0;
-  }
-  :where(.stat dt) {
-    order: 2;
-    color: var(--color-text-muted);
-    font-size: 0.8rem;
-  }
-  :where(.stat dd) {
-    order: 1;
-    margin: 0;
-    white-space: nowrap;
-    color: var(--color-navy);
-    font-family: var(--font-heading);
-    font-size: 1.6rem;
-    font-weight: 700;
-    line-height: 1.5;
-    font-variant-numeric: tabular-nums;
-  }
-  :where(.stat[data-tone="success"] dd) {
-    color: var(--color-success);
-  }
-  :where(.stat[data-tone="danger"] dd) {
-    color: var(--color-danger);
-  }
-  :where(.stat__meter) {
-    order: 3;
-    display: block;
-    height: 4px;
-    margin-top: 0.4rem;
-    border-radius: 4px;
-    background: var(--color-surface);
-    overflow: hidden;
-  }
-  :where(.stat__meter > span) {
-    display: block;
-    height: 100%;
-    width: calc(var(--share, 0) * 100%);
-    background: var(--color-blue);
-  }
   :where(.exam-tabs) {
     display: inline-flex;
     flex-wrap: wrap;
@@ -1390,80 +1022,14 @@
     background: var(--color-navy);
     color: var(--color-white);
   }
-  :where(.dash-grid) {
-    display: grid;
-    grid-template-columns: minmax(0, 1.65fr) minmax(18rem, 1fr);
-    gap: 1.25rem;
-    align-items: start;
-  }
-  :where(.dash-card__head) {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1.1rem;
-  }
-  :where(.dash-card__head h2, .dash-card__title) {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    font-size: 1.05rem;
-  }
-  :where(.dash-card__title) {
-    margin-bottom: 0.9rem;
-  }
   :where(.dash-card__head h2 .icon, .dash-card__title .icon) {
     color: var(--color-blue);
-  }
-  :where(.skill-map__domains) {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
-    gap: 1.5rem 2rem;
-  }
-  :where(.skill-domain h3) {
-    padding-bottom: 0.35rem;
-    border-bottom: 2px solid var(--color-navy);
-    font-size: 0.92rem;
-  }
-  :where(.skill-domain ul) {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  :where(.skill-domain li) {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.35rem 0.75rem;
-    padding-block: 0.65rem;
-    border-bottom: 1px solid var(--color-border);
-  }
-  :where(.skill-domain li:last-child) {
-    border-bottom: 0;
-    padding-bottom: 0.2rem;
-  }
-  :where(.skill-domain__row) {
-    grid-column: 1 / -1;
-    display: flex;
-    justify-content: space-between;
-    gap: 0.75rem;
-    font-size: 0.85rem;
-    font-weight: 600;
-  }
-  :where(.skill-domain__row bdi) {
-    color: var(--color-navy);
-    font-variant-numeric: tabular-nums;
   }
   :where(.skill-domain .profile-bar) {
     max-width: none;
   }
   :where(.skill-domain .mastery-badge) {
     font-size: 0.68rem;
-  }
-  :where(.focus-panels) {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
   }
   :where(.rank-list) {
     list-style: none;
@@ -1500,10 +1066,6 @@
     font-size: 0.8rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
-  }
-  :where(.rank-list__gain) {
-    color: var(--color-success);
-    font-weight: 700;
   }
 
   /* ---------- Session history ---------- */
@@ -1977,59 +1539,10 @@
     font-size: 0.8rem;
     font-weight: 600;
   }
-  :where(.result-overview) {
-    background: var(--color-navy);
-    border-radius: var(--radius);
-    padding: 2rem 2.25rem;
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 2rem;
-    align-items: center;
-    color: var(--color-white);
-  }
-  :where(.result-score) {
-    text-align: center;
-    min-width: 9rem;
-    padding-inline-end: 2rem;
-    border-inline-end: 1px solid var(--color-navy-line);
-  }
-  :where(.result-score strong) {
-    font-size: 3.4rem;
-    font-weight: 700;
-    color: var(--color-gold);
-    line-height: 1.3;
-    font-variant-numeric: tabular-nums;
-  }
-  :where(.result-score p) {
-    font-size: 0.8rem;
-    color: var(--color-on-navy-muted);
-  }
-  :where(.result-overview__label) {
-    color: var(--color-on-navy-muted);
-    font-size: 0.82rem;
-  }
-  :where(.result-overview h2) {
-    color: var(--color-white);
-    font-size: 1.5rem;
-  }
   :where(.result-overview .badge) {
     background: var(--color-navy-elevated);
     color: var(--color-white);
     margin-top: 0.5rem;
-  }
-  :where(.result-overview .result-note) {
-    font-size: 0.82rem;
-    color: var(--color-on-navy-muted);
-    margin-top: 0.7rem;
-    max-width: 52ch;
-  }
-  :where(.result-columns) {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.25rem;
-  }
-  :where(.result-columns h2) {
-    font-size: 1.1rem;
   }
   :where(.result-columns .list) {
     margin-top: 1rem;
@@ -2116,24 +1629,11 @@
 
   /* ---------- Responsive ---------- */
   @media (max-width: 1100px) {
-    :where(.home-hero__inner) {
-      gap: 2.5rem;
-    }
     :where(.page) {
       padding: 2rem;
     }
     :where(.workspace-header) {
       padding-inline: 2rem;
-    }
-    :where(.dash-grid) {
-      grid-template-columns: minmax(0, 1fr);
-    }
-    :where(.home-steps__track) {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      row-gap: 2.5rem;
-    }
-    .home-steps__track::before {
-      display: none;
     }
     :where(.history-row) {
       grid-template-columns: minmax(0, 1fr) auto;
@@ -2154,28 +1654,9 @@
     :where(.site-header__inner) {
       padding: 0.75rem 1.25rem;
     }
-    :where(.home-hero__inner) {
-      grid-template-columns: minmax(0, 1fr);
-      padding: 2.5rem 1.25rem 3rem;
-      gap: 2.5rem;
-    }
-    :where(.home-hero__copy, .sample-map) {
-      grid-column: 1;
-      grid-row: auto;
-    }
-    :where(.sample-map) {
-      width: 100%;
-      max-width: 26rem;
-    }
     :where(.home-principles, .home-report, .home-faq) {
       grid-template-columns: minmax(0, 1fr);
       gap: 2rem;
-      padding: 4rem 1.25rem;
-    }
-    :where(.home-principles__intro) {
-      position: static;
-    }
-    :where(.home-steps) {
       padding: 4rem 1.25rem;
     }
     :where(.home-closing) {
@@ -2311,19 +1792,6 @@
     :where(.profile-grid) {
       grid-template-columns: minmax(0, 1fr);
     }
-    :where(.next-step) {
-      grid-template-columns: minmax(0, 1fr);
-      padding: 1.5rem;
-    }
-    :where(.stat-row) {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    :where(.stat:nth-child(3)) {
-      border-inline-start: 0;
-    }
-    :where(.stat:nth-child(n + 3)) {
-      border-top: 1px solid var(--color-border);
-    }
   }
   @media (max-width: 640px) {
     :where(.site-header__actions) {
@@ -2334,18 +1802,6 @@
     }
     :where(.brand-logo) {
       width: 6.75rem;
-    }
-    :where(.home-hero__copy h1) {
-      font-size: 2rem;
-    }
-    :where(.home-hero__lead) {
-      font-size: 0.95rem;
-    }
-    :where(.home-hero__actions .btn) {
-      flex: 1 1 auto;
-    }
-    :where(.home-steps__track, .home-report__answers) {
-      grid-template-columns: minmax(0, 1fr);
     }
     :where(.page-heading) {
       flex-direction: column;
@@ -2358,15 +1814,6 @@
     :where(.action-row) {
       flex-direction: column;
       align-items: stretch;
-    }
-    :where(.next-step h2) {
-      font-size: 1.2rem;
-    }
-    :where(.stat) {
-      padding: 0.9rem 1rem;
-    }
-    :where(.stat dd) {
-      font-size: 1.35rem;
     }
     :where(.history-toolbar) {
       padding: 1rem;
@@ -2388,9 +1835,6 @@
     :where(.pagination) {
       padding: 0.85rem 1rem;
     }
-    :where(.result-columns) {
-      grid-template-columns: minmax(0, 1fr);
-    }
     :where(.card, .dash-card, .question-card) {
       padding: 1.15rem;
     }
@@ -2406,20 +1850,6 @@
     }
     :where(.question-footer > .btn:first-child) {
       flex: 1;
-    }
-    :where(.result-overview) {
-      padding: 1.5rem;
-      gap: 1.25rem;
-      grid-template-columns: minmax(0, 1fr);
-    }
-    :where(.result-score) {
-      border-inline-end: 0;
-      border-bottom: 1px solid var(--color-navy-line);
-      padding-inline-end: 0;
-      padding-bottom: 1rem;
-    }
-    :where(.result-score strong) {
-      font-size: 2.8rem;
     }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -2455,6 +1885,9 @@
 @media (prefers-reduced-motion: reduce) {
   :root {
     --motion-fast: 0ms;
+    --motion-base: 0ms;
+    --motion-slow: 0ms;
+    --stagger-step: 0ms;
   }
 }
 
@@ -3571,5 +3004,935 @@
 @layer components {
   :where(.progress__bar--weak) {
     background: var(--color-danger);
+  }
+}
+
+/* ---------- Skill states: the colour each state draws in ---------- */
+@layer components {
+  :where([data-state="mastered"]) {
+    --state-color: var(--color-gold);
+  }
+  :where([data-state="ready"]) {
+    --state-color: var(--color-blue);
+  }
+  :where([data-state="developing"]) {
+    --state-color: var(--color-rule-strong);
+  }
+  :where([data-state="gap"]) {
+    --state-color: var(--color-danger);
+  }
+  :where([data-state="unassessed"]) {
+    --state-color: var(--color-border);
+  }
+}
+
+/*
+ * ---------- Motion ----------
+ * One vocabulary: content rises in once, in reading order; data fills from the
+ * inline start (the right, in RTL); controls answer a press within 160ms.
+ * Entrances use `backwards` fill only, so no transform is left on an element
+ * afterwards (a lingering transform would trap fixed or sticky descendants).
+ * prefers-reduced-motion zeroes every duration token, and the last rule stops
+ * what remains.
+ */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes grow-inline {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes cell-in {
+  from {
+    opacity: 0;
+    transform: scaleY(0.2);
+  }
+}
+@keyframes nudge {
+  50% {
+    transform: translateY(-2px);
+  }
+}
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
+@layer components {
+  /* Page sections arrive in reading order. */
+  :where(.page > *, .home > section, .auth-form > *) {
+    animation: rise var(--motion-slow) var(--ease-out) backwards;
+    animation-delay: calc(var(--stagger, 0) * var(--stagger-step));
+  }
+  :where(.page > :nth-child(2), .home > :nth-child(2), .auth-form > :nth-child(2)) {
+    --stagger: 1;
+  }
+  :where(.page > :nth-child(3), .auth-form > :nth-child(3)) {
+    --stagger: 2;
+  }
+  :where(.page > :nth-child(4), .auth-form > :nth-child(4)) {
+    --stagger: 3;
+  }
+  :where(.page > :nth-child(5), .auth-form > :nth-child(5)) {
+    --stagger: 4;
+  }
+  :where(.page > :nth-child(n + 6), .auth-form > :nth-child(n + 6)) {
+    --stagger: 5;
+  }
+  /* A running question swaps in place; it should not slide on every answer. */
+  :where(.workspace--focus .page > *) {
+    animation-name: fade;
+  }
+
+  /* Rows in a list follow their section in, a beat apart. */
+  :where(
+    .history-row,
+    .exam-row,
+    .rank-list li,
+    .list__item,
+    .skill-domain li,
+    .profile-skill,
+    .faq-list details,
+    .home-principles__list li
+  ) {
+    animation: rise var(--motion-base) var(--ease-out) backwards;
+    animation-delay: calc((3 + var(--row, 0)) * var(--stagger-step));
+  }
+  :where(
+    .history-row:nth-child(2),
+    .exam-row:nth-child(2),
+    .rank-list li:nth-child(2),
+    .list__item:nth-child(2),
+    .skill-domain li:nth-child(2),
+    .profile-skill:nth-child(2),
+    .faq-list details:nth-child(2),
+    .home-principles__list li:nth-child(2)
+  ) {
+    --row: 1;
+  }
+  :where(
+    .history-row:nth-child(3),
+    .exam-row:nth-child(3),
+    .rank-list li:nth-child(3),
+    .list__item:nth-child(3),
+    .skill-domain li:nth-child(3),
+    .profile-skill:nth-child(3),
+    .faq-list details:nth-child(3),
+    .home-principles__list li:nth-child(3)
+  ) {
+    --row: 2;
+  }
+  :where(
+    .history-row:nth-child(n + 4),
+    .exam-row:nth-child(n + 4),
+    .rank-list li:nth-child(n + 4),
+    .list__item:nth-child(n + 4),
+    .skill-domain li:nth-child(n + 4),
+    .profile-skill:nth-child(n + 4),
+    .faq-list details:nth-child(n + 4),
+    .home-principles__list li:nth-child(n + 4)
+  ) {
+    --row: 3;
+  }
+
+  /* Measured values fill from the inline start once they are on screen. */
+  :where(.profile-bar > span, .progress__bar) {
+    transform-origin: 100% 50%;
+    animation: grow-inline var(--motion-slow) var(--ease-out) backwards;
+    animation-delay: calc(5 * var(--stagger-step));
+  }
+  :where(.progress__bar) {
+    transition: width var(--motion-base) var(--ease-out);
+  }
+
+  /* Controls: a press sinks, the arrow leans the way it leads. */
+  :where(.btn:active:not(:disabled)) {
+    transform: translateY(1px) scale(0.985);
+  }
+  :where(.btn .icon) {
+    transition: transform var(--motion-fast) var(--ease-out);
+  }
+  :where(.btn:hover:not(:disabled) .icon[data-icon="arrow"]) {
+    transform: translateX(-3px);
+  }
+  :where(.field__input) {
+    transition:
+      border-color var(--motion-fast) var(--ease-out),
+      box-shadow var(--motion-fast) var(--ease-out),
+      background-color var(--motion-fast) var(--ease-out);
+  }
+  :where(.sidebar-link .icon) {
+    transition: transform var(--motion-fast) var(--ease-out);
+  }
+  :where(.sidebar-link:hover .icon) {
+    transform: translateX(-2px);
+  }
+  :where(.mobile-nav a .icon) {
+    transition: color var(--motion-fast);
+  }
+  :where(.mobile-nav a[aria-current="page"] .icon) {
+    animation: nudge var(--motion-base) var(--ease-out);
+  }
+  :where(.exam-tabs__tab:active) {
+    transform: scale(0.97);
+  }
+
+  /* FAQ answers open and close instead of jumping (where the browser can size to auto). */
+  :where(.faq-list details)::details-content {
+    block-size: 0;
+    overflow: hidden;
+    transition:
+      block-size var(--motion-base) var(--ease-in-out),
+      content-visibility var(--motion-base) allow-discrete;
+  }
+  :where(.faq-list details[open])::details-content {
+    block-size: auto;
+  }
+}
+:root {
+  interpolate-size: allow-keywords;
+}
+
+/*
+ * ---------- Identity: "gold is earned" (2026-11-03) ----------
+ * Two angles only, horizontal and 45°, as in the logo. Gold is the fold on a
+ * proven skill and nothing else; navy carries weight; blue measures.
+ */
+@layer components {
+  /* The fold: the logo's gold slab, solid when earned, an outline when provisional. */
+  :where(.fold) {
+    display: inline-block;
+    vertical-align: middle;
+    flex: none;
+  }
+  :where(.fold polygon) {
+    fill: var(--color-gold);
+    stroke: var(--color-gold);
+    stroke-width: 1;
+    stroke-linejoin: round;
+  }
+  :where(.fold[data-state="provisional"] polygon) {
+    fill: none;
+    stroke: var(--color-rule-strong);
+    stroke-width: 1.5;
+    stroke-dasharray: 3 2;
+  }
+
+  /* A state written beside a skill: the word carries the meaning, colour follows. */
+  :where(.state-word) {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.05rem 0.5rem;
+    border-radius: var(--radius-small);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.6;
+    white-space: nowrap;
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+  }
+  :where(.state-word[data-tone="earned"]) {
+    background: var(--color-gold-surface);
+    color: var(--color-gold-ink);
+  }
+  :where(.state-word[data-tone="ready"]) {
+    background: var(--color-blue-surface);
+    color: var(--color-blue-strong);
+  }
+  :where(.state-word[data-tone="gap"]) {
+    background: var(--color-danger-surface);
+    color: var(--color-danger);
+  }
+
+  /* The ruler: ten 45° ticks, filled by what was measured. */
+  :where(.ticks) {
+    display: inline-flex;
+    gap: 3px;
+    padding-inline: 4px;
+  }
+  :where(.ticks__tick) {
+    width: 5px;
+    height: 14px;
+    border-radius: 1px;
+    background: var(--color-border);
+    transform: skewX(-45deg);
+  }
+  :where(.ticks__tick[data-on]) {
+    background: var(--color-blue);
+    animation: tick-in var(--motion-base) var(--ease-out) backwards;
+    animation-delay: calc(var(--i, 0) * var(--stagger-step) + var(--motion-base));
+  }
+
+  /* One skill, one line: rank, name and state together, the measure beside them. */
+  :where(.skill-rows) {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  :where(.skill-row) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 4.25rem;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 3.5rem;
+    padding-block: 0.55rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+  :where(.skill-row:last-child) {
+    border-bottom: 0;
+  }
+  :where(.skill-row[data-ranked]) {
+    grid-template-columns: 1.6rem minmax(0, 1fr) auto 4.25rem;
+  }
+  :where(.skill-row__rank) {
+    display: grid;
+    place-items: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-small);
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  :where(.skill-row__name) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.5rem;
+    min-width: 0;
+  }
+  :where(.skill-row__name strong) {
+    color: var(--color-navy);
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  :where(.skill-row__name small) {
+    flex-basis: 100%;
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+  }
+  :where(.skill-row__figure) {
+    color: var(--color-navy);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+  }
+
+  /* Tiles: one per skill, earned first. */
+  :where(.tiles) {
+    display: grid;
+    grid-template-columns: repeat(var(--count, 10), minmax(0, 1fr));
+    gap: 3px;
+    min-height: 1.1rem;
+  }
+  :where(.tiles__tile) {
+    min-height: 100%;
+    border-radius: 1px;
+    background: var(--state-color, var(--color-border));
+    animation: cell-in var(--motion-base) var(--ease-out) backwards;
+    animation-delay: calc(var(--i, 0) * 18ms);
+  }
+  :where(.state-legend) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.25rem;
+    margin: 0;
+    padding: 0.9rem 0 0;
+    border-top: 1px solid var(--color-border);
+    list-style: none;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+  }
+  :where(.state-legend li) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  :where(.state-legend li[data-empty]) {
+    opacity: 0.55;
+  }
+  :where(.state-legend strong) {
+    color: var(--color-navy);
+    font-variant-numeric: tabular-nums;
+  }
+  :where(.state-legend__swatch) {
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 1px;
+    background: var(--state-color);
+  }
+
+  /* Where the student stands. */
+  :where(.standing) {
+    display: grid;
+    gap: 1.1rem;
+  }
+  :where(.standing__figure) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem 0.75rem;
+    color: var(--color-text-muted);
+  }
+  /* "6/31" reads left to right, as on the exam sheet. */
+  :where(.standing__figure strong, .verdict__score strong) {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+  :where(.standing__figure strong) {
+    color: var(--color-navy);
+    font-size: clamp(2.6rem, 4vw, 3.5rem);
+    font-weight: 600;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  :where(.standing__figure strong span) {
+    color: var(--color-text-muted);
+    font-size: 0.5em;
+    font-weight: 500;
+  }
+  :where(.standing__domains) {
+    display: grid;
+    gap: 0.6rem;
+  }
+  :where(.standing__domain) {
+    display: grid;
+    grid-template-columns: 4.5rem minmax(0, 1fr) 4rem;
+    align-items: center;
+    gap: 0.9rem;
+  }
+  :where(.standing__domain .tiles) {
+    min-height: 1.75rem;
+  }
+  :where(.standing__domain--single) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  :where(.standing__name) {
+    color: var(--color-navy);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  :where(.standing__count) {
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+    text-align: end;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Panels: white, one hairline, no shadow. */
+  :where(.panel) {
+    min-width: 0;
+    padding: 1.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-white);
+  }
+  :where(.panel__label) {
+    margin-bottom: 0.4rem;
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  :where(.panel__head) {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid var(--color-border-strong);
+  }
+  :where(.panel__head h2) {
+    font-size: 1.1rem;
+  }
+  :where(.panel__head .text-link) {
+    white-space: nowrap;
+    font-size: 0.85rem;
+  }
+  :where(.panel__sub) {
+    margin: 1.25rem 0 0.25rem;
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  :where(.panel__empty, .panel__foot) {
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+  }
+  :where(.panel__foot) {
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--color-border);
+    font-size: 0.8rem;
+  }
+
+  /* The next step: the one navy card on the page, with one white button. */
+  :where(.next-card) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: 1.5rem;
+    border-radius: var(--radius);
+    background: var(--color-navy);
+    color: var(--color-on-navy-muted);
+  }
+  :where(.next-card h2) {
+    color: var(--color-white);
+    font-size: clamp(1.25rem, 1.8vw, 1.5rem);
+    line-height: 1.5;
+  }
+  :where(.next-card__label) {
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  :where(.next-card__why) {
+    font-size: 0.9rem;
+    line-height: 1.8;
+  }
+  :where(.next-card__actions) {
+    display: grid;
+    gap: 0.85rem;
+    margin-top: auto;
+    padding-top: 0.5rem;
+  }
+  :where(.next-card__links) {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem 1.25rem;
+    font-size: 0.85rem;
+  }
+  :where(.next-card__links a) {
+    color: var(--color-white);
+  }
+  :where(.next-card--wide) {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 2rem;
+  }
+  :where(.next-card--wide > div) {
+    display: grid;
+    gap: 0.6rem;
+    max-width: 40rem;
+  }
+  :where(.btn--block) {
+    width: 100%;
+  }
+
+  /* Dashboard: the next step beside where you stand, then gaps beside strengths. */
+  :where(.dash-head__line) {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+  }
+  :where(.dash-head__line .dash-head__exam) {
+    color: var(--color-navy);
+    font-size: inherit;
+  }
+  :where(.dash-row) {
+    display: grid;
+    grid-template-columns: minmax(16rem, 1fr) minmax(0, 2fr);
+    gap: 1.25rem;
+    align-items: stretch;
+  }
+  :where(.dash-row[data-solo]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  :where(.dash-row--split) {
+    grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
+    align-items: start;
+  }
+
+  /* Home hero: the promise beside a real-looking profile. */
+  :where(.hero) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 4rem;
+    max-width: var(--content-width);
+    margin-inline: auto;
+    padding: 4.5rem 2rem 5rem;
+  }
+  :where(.hero__copy) {
+    display: grid;
+    gap: 1.5rem;
+    padding-top: 1.5rem;
+  }
+  :where(.hero h1) {
+    font-size: clamp(2.2rem, 3.6vw, 3.25rem);
+    line-height: 1.35;
+  }
+  :where(.hero h1 span) {
+    display: block;
+    color: var(--color-blue);
+  }
+  :where(.hero__lead) {
+    max-width: 40ch;
+    color: var(--color-text-muted);
+    font-size: 1.1rem;
+    line-height: 1.85;
+  }
+  :where(.hero__actions) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.25rem 1.75rem;
+  }
+  :where(.hero__assurance) {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+  }
+  :where(.sample-profile) {
+    margin: 0;
+    padding: 1.25rem 1.5rem 1.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-white);
+    box-shadow: var(--shadow);
+  }
+  :where(.sample-profile__head) {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--color-border-strong);
+    color: var(--color-navy);
+    font-family: var(--font-heading);
+    font-weight: 700;
+  }
+  :where(.sample-tag) {
+    padding: 0.05rem 0.5rem;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-small);
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  :where(.sample-profile__foot) {
+    display: grid;
+    gap: 0.65rem;
+    margin-top: 0.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+  }
+  :where(.sample-profile__foot strong) {
+    color: var(--color-navy);
+  }
+
+  /* How it works: one loop of four 45° segments, read from the start edge. */
+  :where(.loop) {
+    background: var(--color-surface-raised);
+    border-block: 1px solid var(--color-border);
+  }
+  :where(.loop__inner) {
+    max-width: var(--content-width);
+    margin-inline: auto;
+    padding: 5rem 2rem;
+  }
+  :where(.loop__head) {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem 3rem;
+    margin-bottom: 2.25rem;
+  }
+  :where(.loop__head h2) {
+    font-size: clamp(1.6rem, 2.4vw, 2rem);
+  }
+  :where(.loop__head > p) {
+    max-width: 38ch;
+    color: var(--color-text-muted);
+  }
+  :where(.loop__steps) {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  :where(.loop__steps li) {
+    display: grid;
+    align-content: start;
+    gap: 0.75rem;
+  }
+  :where(.loop__seg) {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    height: 3.5rem;
+    margin-inline-start: -1.4rem;
+    padding-inline: 2.4rem 1.75rem;
+    background: var(--color-white);
+    color: var(--color-navy);
+    font-size: 1rem;
+    /* RTL: the notch on the start (right) edge, the point on the end (left). */
+    clip-path: polygon(1.75rem 0, 100% 0, calc(100% - 1.75rem) 50%, 100% 100%, 1.75rem 100%, 0 50%);
+  }
+  :where(.loop__steps li:first-child .loop__seg) {
+    margin-inline-start: 0;
+    padding-inline-start: 1.25rem;
+    clip-path: polygon(1.75rem 0, 100% 0, 100% 100%, 1.75rem 100%, 0 50%);
+  }
+  :where(.loop__steps li:last-child .loop__seg) {
+    background: var(--color-navy);
+    color: var(--color-white);
+  }
+  :where(.loop__num) {
+    color: var(--color-blue);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  :where(.loop__steps li:last-child .loop__num) {
+    color: var(--color-on-navy-muted);
+  }
+  :where(.loop__steps p) {
+    padding-inline: 1.25rem 2.25rem;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+  :where(.loop__note) {
+    padding-inline-start: 1.25rem;
+    color: var(--color-navy);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  :where(.principles) {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2rem;
+    margin: 3rem 0 0;
+    padding: 1.5rem 0 0;
+    border-top: 1px solid var(--color-border-strong);
+    list-style: none;
+  }
+  :where(.principles h3) {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.35rem;
+    font-size: 1rem;
+  }
+  :where(.principles p) {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+
+  /* Result: the verdict and its action first, then what to train beside what holds. */
+  :where(.result) {
+    display: grid;
+    gap: 1.75rem;
+    max-width: 60rem;
+  }
+  :where(.verdict) {
+    display: grid;
+    gap: 1rem;
+    padding-bottom: 1.75rem;
+    border-bottom: 1px solid var(--color-border-strong);
+  }
+  :where(.verdict h1) {
+    font-size: clamp(1.6rem, 2.6vw, 2.2rem);
+    line-height: 1.45;
+  }
+  :where(.verdict__row) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem 1.75rem;
+  }
+  :where(.verdict__score) {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding-inline-end: 1.75rem;
+    border-inline-end: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+  :where(.verdict__score strong) {
+    color: var(--color-navy);
+    font-size: 3.25rem;
+    font-weight: 600;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  :where(.verdict__score strong span) {
+    color: var(--color-text-muted);
+    font-size: 0.5em;
+    font-weight: 500;
+  }
+  :where(.verdict__note) {
+    flex: 1 1 16rem;
+    color: var(--color-text-muted);
+  }
+  :where(.verdict__actions) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem 1.5rem;
+  }
+  :where(.result-pair) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: start;
+  }
+  :where(.result-plans) {
+    display: grid;
+    gap: 1.25rem;
+    scroll-margin-top: 6rem;
+  }
+
+  @media (max-width: 1100px) {
+    :where(.dash-row, .dash-row--split) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    :where(.hero) {
+      gap: 2.5rem;
+    }
+  }
+  @media (max-width: 900px) {
+    :where(.hero) {
+      grid-template-columns: minmax(0, 1fr);
+      padding: 2.5rem 1.25rem 3rem;
+    }
+    :where(.hero__copy) {
+      padding-top: 0;
+    }
+    :where(.loop__inner) {
+      padding: 3.5rem 1.25rem;
+    }
+    /* On a phone the loop becomes a rail, read top to bottom. */
+    :where(.loop__steps) {
+      grid-template-columns: minmax(0, 1fr);
+      margin-inline-start: 0.6rem;
+      border-inline-start: 2px solid var(--color-border-strong);
+    }
+    :where(.loop__steps li) {
+      position: relative;
+      gap: 0.3rem;
+      padding: 0 1.4rem 1.5rem 0;
+    }
+    :where(.loop__steps li)::before {
+      content: "";
+      position: absolute;
+      inset-inline-start: -0.5rem;
+      top: 0.35rem;
+      width: 0.8rem;
+      height: 0.8rem;
+      border: 2px solid var(--color-blue);
+      background: var(--color-surface-raised);
+      transform: rotate(45deg);
+    }
+    :where(.loop__steps li:last-child)::before {
+      border-color: var(--color-gold);
+      background: var(--color-gold);
+    }
+    :where(
+        .loop__seg,
+        .loop__steps li:first-child .loop__seg,
+        .loop__steps li:last-child .loop__seg
+      ) {
+      height: auto;
+      margin: 0;
+      padding: 0;
+      clip-path: none;
+      background: none;
+      color: var(--color-navy);
+      font-size: 1.05rem;
+    }
+    :where(.loop__steps li:last-child .loop__num) {
+      color: var(--color-blue);
+    }
+    :where(.loop__steps p, .loop__note) {
+      padding: 0;
+    }
+    :where(.principles) {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 1.25rem;
+    }
+    :where(.result-pair) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (max-width: 640px) {
+    :where(.hero__actions .btn) {
+      flex: 1 1 100%;
+    }
+    :where(.hero__actions .text-link) {
+      display: none;
+    }
+    :where(.panel) {
+      padding: 1.1rem 1rem;
+    }
+    :where(.skill-row, .skill-row[data-ranked]) {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+    :where(.skill-row:not([data-ranked])) {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    :where(.skill-row .ticks, .skill-row__name small) {
+      display: none;
+    }
+    :where(.standing__domain) {
+      grid-template-columns: 3.5rem minmax(0, 1fr);
+    }
+    :where(.standing__count) {
+      display: none;
+    }
+    :where(.verdict__score) {
+      border: 0;
+      padding: 0;
+    }
+    :where(.next-card--wide) {
+      padding: 1.5rem;
+    }
+    :where(.next-card--wide .btn) {
+      width: 100%;
+    }
+  }
+}
+
+@keyframes tick-in {
+  from {
+    opacity: 0;
+    transform: skewX(-45deg) scaleY(0.2);
+  }
+}
+
+/* The fold folds in: the one celebration the product allows, and only for earned gold. */
+@keyframes fold-in {
+  from {
+    opacity: 0;
+    transform: translate(-6px, -6px);
+  }
+}
+@layer components {
+  :where(.fold:not([data-state="provisional"])) {
+    animation: fold-in var(--motion-slow) var(--ease-out) backwards;
+    animation-delay: var(--motion-base);
   }
 }

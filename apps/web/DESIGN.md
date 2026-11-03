@@ -316,3 +316,15 @@ page. The rules below supersede anything above that conflicts with them.
 - **Don't** resolve the QUP/معين naming relationship through an incidental UI change.
 - **Don't** replace meaningful empty/error/loading states with fictional data.
 - **Don't** use hidden controls or visual status styling as a substitute for backend authority.
+
+
+## Revision 2026-11-03 (b): visual identity "gold is earned"
+
+The full identity lives in the design-system artifact "هوية QUP البصرية". In code:
+
+- **Gold is earned.** `Fold` (`components/fold.tsx`) is the logo's 45° gold slab and the only gold in the product UI. Solid for MASTERED, a dashed outline for provisional evidence. It always sits beside a written state (`StateWord`). `.btn--gold` is gone; primary buttons are navy, and `.btn--light` is the primary action on a navy band.
+- **Two angles, two weights.** Horizontal and 45° only; heavy blocks and 1px rules. Radii tightened to 6/10/14px (`--radius-small`, `--radius`, `--radius-large`); `--radius-fold` is 2px.
+- **Measure, then state.** `SkillRow` puts the rank, name and written state together, then ten 45° ticks and the figure. `StandingTiles` draws one tile per skill split by domain, with a legend that names every count.
+- **Layout.** Dashboard: next step (navy card) beside where you stand, then ranked gaps beside strengths, then the session history. Home: promise beside a labelled sample profile, one four-segment loop, principles, FAQ, navy close. Result: verdict, score and the action first, then what to train beside what holds.
+- **Motion.** Ticks fill one by one, tiles grow in, figures count up once, and the fold slides in along its 45° edge. Nothing waits for scroll; reduced motion zeroes every token.
+- Removed: contour rings, the drawn journey route, and the scroll-driven section entrance.
