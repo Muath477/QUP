@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { useRef } from "react";
 import { checkout, getExamAccess, listPlans, type PlanOffer } from "@/lib/api";
 import { formatDate } from "@/lib/format";
@@ -97,6 +98,10 @@ export function PlanOffers({ examId }: { examId: string }) {
           </li>
         ))}
       </ul>
+      <p className="small muted plan-terms">
+        بالاشتراك فإنك توافق على <Link href="/terms">الشروط والأحكام</Link>، ومنها استرجاع كامل
+        المبلغ خلال 48 ساعة من تفعيل الاشتراك.
+      </p>
     </div>
   );
 }

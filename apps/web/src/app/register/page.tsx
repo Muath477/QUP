@@ -86,6 +86,10 @@ export default function RegisterPage() {
         <button type="submit" className="btn btn--block" disabled={signUp.isPending}>
           {signUp.isPending ? "جارٍ إنشاء الحساب…" : "إنشاء الحساب"}
         </button>
+        <p className="auth-consent">
+          بإنشائك الحساب فإنك توافق على <Link href="/terms">الشروط والأحكام</Link> و
+          <Link href="/privacy">سياسة الخصوصية</Link>.
+        </p>
         <p className="auth-form-foot">
           لديك حساب؟ <Link href="/login">سجّل الدخول</Link>
         </p>
