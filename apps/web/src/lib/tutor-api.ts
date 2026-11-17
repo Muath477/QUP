@@ -35,6 +35,8 @@ export interface AiFeatures {
   studyChat: boolean;
   /** Whether the student's subscription covers the exam; null when no exam was given. */
   subscribed: boolean | null;
+  /** Free study chat replies left before subscribing; null for a subscriber or without an exam. */
+  freeChatMessagesLeft: number | null;
 }
 
 export const getAiFeatures = (examId?: string) =>
@@ -54,6 +56,8 @@ export interface ChatReply {
   kind: "ANSWERED" | "OFF_TOPIC" | "REFUSED";
   /** Titles of the library entries the reply drew on. */
   sources: string[];
+  /** Free replies left after this one; null for a subscriber. */
+  freeRemaining: number | null;
 }
 
 /** Longest message the assistant accepts (the API refuses longer ones). */

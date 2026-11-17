@@ -137,7 +137,12 @@ describe("personalised explanations of a student's mistakes", () => {
 
     expect(
       (await call(app, student.token, "GET", `/me/ai-features?examId=${exam.examId}`)).json(),
-    ).toEqual({ mistakeExplanations: true, studyChat: true, subscribed: true });
+    ).toEqual({
+      mistakeExplanations: true,
+      studyChat: true,
+      subscribed: true,
+      freeChatMessagesLeft: null,
+    });
     const first = await call(app, student.token, "POST", url);
     expect(first.statusCode, first.payload).toBe(200);
     expect(first.json()).toMatchObject({
@@ -198,6 +203,7 @@ describe("personalised explanations of a student's mistakes", () => {
       mistakeExplanations: false,
       studyChat: true,
       subscribed: null,
+      freeChatMessagesLeft: null,
     });
     const refused = await call(
       other,

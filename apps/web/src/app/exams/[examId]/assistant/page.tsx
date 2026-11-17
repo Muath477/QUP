@@ -67,24 +67,35 @@ export default function AssistantPage() {
       </main>
     );
   }
-  if (!features.data.subscribed) return <SubscribeFirst />;
-  return <Chat examId={examId} userId={user?.id ?? ""} />;
+  return (
+    <Chat
+      examId={examId}
+      userId={user?.id ?? ""}
+      freeLeft={features.data.subscribed ? null : (features.data.freeChatMessagesLeft ?? 0)}
+    />
+  );
 }
 
-function SubscribeFirst() {
+function SubscribeFirst({ triedFree }: { triedFree: boolean }) {
   return (
-    <main id="main-content" className="page">
-      <EmptyState
-        icon="lock"
-        title="المساعد الدراسي للمشتركين"
-        description="بعد الاشتراك تسأل المساعد عن أي مهارة في الاختبار، فيشرح لك خطوة بخطوة ويقترح عليك ما تتدرّب عليه."
-      >
-        <Link href="/subscriptions" className="btn">
-          عرض الباقات
-        </Link>
-      </EmptyState>
-    </main>
+    <EmptyState
+      icon="lock"
+      title={triedFree ? "انتهت رسائلك المجانية" : "المساعد الدراسي للمشتركين"}
+      description="بعد الاشتراك تسأل المساعد عن أي مهارة في الاختبار، فيشرح لك خطوة بخطوة ويقترح عليك ما تتدرّب عليه."
+    >
+      <Link href="/subscriptions" className="btn">
+        عرض الباقات
+      </Link>
+    </EmptyState>
   );
+}
+
+/** "3 رسائل" in Arabic number agreement, for the free trial count. */
+function freeText(count: number): string {
+  if (count === 1) return "رسالة مجانية واحدة";
+  if (count === 2) return "رسالتان مجانيتان";
+  if (count <= 10) return `${count} رسائل مجانية`;
+  return `${count} رسالة مجانية`;
 }
 
 /**
@@ -92,12 +103,22 @@ function SubscribeFirst() {
  * exam, kept by the server. The assistant only helps with preparing for the
  * exam; what it says is AI-written and may be wrong.
  */
-function Chat({ examId, userId }: { examId: string; userId: string }) {
+function Chat({
+  examId,
+  userId,
+  freeLeft: initialFree,
+}: {
+  examId: string;
+  userId: string;
+  /** Free replies left before subscribing; null for a subscriber. */
+  freeLeft: number | null;
+}) {
   const id = useId();
   const queryClient = useQueryClient();
   const queryKey = ["ai-chat", userId, examId];
   const [draft, setDraft] = useState("");
   const [sources, setSources] = useState<string[]>([]);
+  const [freeLeft, setFreeLeft] = useState(initialFree);
   const end = useRef<HTMLDivElement>(null);
 
   const history = useQuery({ queryKey, queryFn: () => getChat(examId), retry: false });
@@ -106,6 +127,7 @@ function Chat({ examId, userId }: { examId: string; userId: string }) {
     onSuccess: (reply) => {
       setDraft("");
       setSources(reply.sources);
+      setFreeLeft(reply.freeRemaining);
       queryClient.setQueryData<{ items: ChatMessage[] }>(queryKey, (current) => ({
         items: [...(current?.items ?? []), ...reply.messages],
       }));
@@ -125,7 +147,7 @@ function Chat({ examId, userId }: { examId: string; userId: string }) {
     if (count > 0) end.current?.scrollIntoView({ block: "end" });
   }, [count]);
 
-  if (isApiError(history.error, "AI_REQUIRES_SUBSCRIPTION")) return <SubscribeFirst />;
+  const locked = freeLeft === 0 || isApiError(send.error, "AI_FREE_LIMIT_REACHED");
 
   function submit(event?: FormEvent) {
     event?.preventDefault();
@@ -153,10 +175,17 @@ function Chat({ examId, userId }: { examId: string; userId: string }) {
         }
       />
 
+      {freeLeft !== null && !locked ? (
+        <p className="notice" role="status">
+          {`تجربة مجانية: باقي لك ${freeText(freeLeft)}. `}
+          <Link href="/subscriptions">اشترك</Link> لتسأل المساعد بلا انقطاع.
+        </p>
+      ) : null}
+
       <section className="card chat" aria-label="المحادثة">
         {history.isPending ? <Loading /> : null}
         {history.isError ? <ErrorNotice error={history.error} /> : null}
-        {history.data && messages.length === 0 ? (
+        {history.data && messages.length === 0 && !locked ? (
           <div className="chat__empty stack">
             <p className="muted">ابدأ بسؤال، أو اختر واحدًا من هذه:</p>
             <div className="chip-group">
@@ -197,37 +226,46 @@ function Chat({ examId, userId }: { examId: string; userId: string }) {
           <p className="small muted">{`استند الرد إلى: ${sources.join("، ")}`}</p>
         ) : null}
 
-        <form className="chat__composer stack" onSubmit={submit}>
-          <label className="visually-hidden" htmlFor={`${id}-message`}>
-            رسالتك
-          </label>
-          <textarea
-            id={`${id}-message`}
-            className="field__input"
-            rows={3}
-            maxLength={CHAT_MESSAGE_MAX}
-            placeholder="اكتب سؤالك… (Enter للإرسال، Shift+Enter لسطر جديد)"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={onKeyDown}
-          />
-          {send.isError ? <ErrorNotice error={send.error} /> : null}
-          <div className="row chat__actions">
-            <button type="submit" className="btn" disabled={draft.trim() === "" || send.isPending}>
-              <Icon name="chat" />
-              {send.isPending ? "جارٍ الإرسال…" : "أرسل"}
-            </button>
-            {messages.length > 0 ? (
-              <ConfirmAction
-                label="محادثة جديدة"
-                description="ستُحذف هذه المحادثة نهائيًا. لا يعيد ذلك رصيدك اليومي من الرسائل."
-                confirmLabel="احذفها"
-                onConfirm={() => clear.mutate()}
-                pending={clear.isPending}
-              />
-            ) : null}
-          </div>
-        </form>
+        {locked ? (
+          <SubscribeFirst triedFree={(initialFree ?? 0) > 0 || messages.length > 0} />
+        ) : null}
+        {locked ? null : (
+          <form className="chat__composer stack" onSubmit={submit}>
+            <label className="visually-hidden" htmlFor={`${id}-message`}>
+              رسالتك
+            </label>
+            <textarea
+              id={`${id}-message`}
+              className="field__input"
+              rows={3}
+              maxLength={CHAT_MESSAGE_MAX}
+              placeholder="اكتب سؤالك… (Enter للإرسال، Shift+Enter لسطر جديد)"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={onKeyDown}
+            />
+            {send.isError ? <ErrorNotice error={send.error} /> : null}
+            <div className="row chat__actions">
+              <button
+                type="submit"
+                className="btn"
+                disabled={draft.trim() === "" || send.isPending}
+              >
+                <Icon name="chat" />
+                {send.isPending ? "جارٍ الإرسال…" : "أرسل"}
+              </button>
+              {messages.length > 0 ? (
+                <ConfirmAction
+                  label="محادثة جديدة"
+                  description="ستُحذف هذه المحادثة نهائيًا. لا يعيد ذلك رصيدك اليومي من الرسائل."
+                  confirmLabel="احذفها"
+                  onConfirm={() => clear.mutate()}
+                  pending={clear.isPending}
+                />
+              ) : null}
+            </div>
+          </form>
+        )}
         <p className="small muted">
           ردود المساعد مولّدة بالذكاء الاصطناعي وقد تخطئ أحيانًا؛ اعتبرها أداة مساعدة لا مرجعًا وحيدًا.
         </p>

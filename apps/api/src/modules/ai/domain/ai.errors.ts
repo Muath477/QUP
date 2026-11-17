@@ -68,6 +68,16 @@ export class AiRequiresSubscription extends DomainError {
   }
 }
 
+/** A student without a subscription used up the free study chat replies. */
+export class AiFreeLimitReached extends DomainError {
+  readonly code = "AI_FREE_LIMIT_REACHED";
+  readonly kind = "FORBIDDEN";
+
+  constructor(readonly limit: number) {
+    super(`The ${limit} free study assistant replies are used up. Subscribe to keep going.`);
+  }
+}
+
 /** The operator turned the study chat off (AI_STUDY_CHAT=false). */
 export class AiStudyChatOff extends DomainError {
   readonly code = "AI_STUDY_CHAT_OFF";

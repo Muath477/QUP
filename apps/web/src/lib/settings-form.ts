@@ -122,3 +122,17 @@ export function chatRulesProblem(rules: readonly string[]): string | null {
   const index = rules.findIndex((rule) => rule.length > CHAT_RULE_MAX_CHARS);
   return index === -1 ? null : `القاعدة ${index + 1} أطول من ${CHAT_RULE_MAX_CHARS} حرف.`;
 }
+
+/** The free study chat replies before subscribing, as the API keeps them. */
+export interface FreeTrialValue {
+  chatMessages: number;
+}
+
+export const FREE_CHAT_MESSAGES_MAX = 100;
+
+/** The problem with a typed allowance, in Arabic, or null when the API will accept it. */
+export function freeTrialProblem(text: string): string | null {
+  const value = text.trim();
+  if (!/^\d+$/.test(value)) return "اكتب عددًا صحيحًا من 0 فأكثر.";
+  return Number(value) > FREE_CHAT_MESSAGES_MAX ? `الحد الأقصى ${FREE_CHAT_MESSAGES_MAX}.` : null;
+}

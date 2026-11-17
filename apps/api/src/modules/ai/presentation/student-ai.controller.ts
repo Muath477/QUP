@@ -57,10 +57,14 @@ export class StudentAiController {
     @CurrentPrincipal() principal: Principal,
     @Query(new ZodValidationPipe(featuresQuery)) query: FeaturesQuery,
   ) {
+    const allowance = query.examId
+      ? await this.chat.allowance(principal.userId, query.examId)
+      : { subscribed: null, freeRemaining: null };
     return {
       mistakeExplanations: this.tutor.enabled(),
       studyChat: this.chat.enabled(),
-      subscribed: query.examId ? await this.tutor.subscribed(principal.userId, query.examId) : null,
+      subscribed: allowance.subscribed,
+      freeChatMessagesLeft: allowance.freeRemaining,
     };
   }
 

@@ -121,8 +121,12 @@ Assumptions: OPEN_QUESTIONS.md #19a.
   When nothing matches, the exam's newest passages are used. The model is told to match their
   format and never copy them. The response reports `styleExamples`, the count used.
 - **`study_chat` (`chat-v1`):** see Study Chat below.
-- **Subscribers only:** every student AI route checks `ExamAccess.hasExamAccess` first and answers
-  `403 AI_REQUIRES_SUBSCRIPTION` without one.
+- **Subscribers only, with a free taste:** mistake explanations check `ExamAccess.hasExamAccess`
+  first and answer `403 AI_REQUIRES_SUBSCRIPTION` without one.
+  - The study chat gives a student without a subscription a few free replies, once per account and
+    across exams. The default is 5, set by `ai.freeTrial` on the settings page; 0 turns the trial off.
+  - Only successful runs count toward the trial.
+  - After the trial, sending answers `403 AI_FREE_LIMIT_REACHED`. The conversation stays readable.
 
 ## Study Chat
 
