@@ -3,6 +3,7 @@ import { Module } from "@nestjs/common";
 import { APP_CONFIG, type AppConfig } from "../../config/app-config.js";
 import { AuthModule } from "../auth/auth.module.js";
 import { CatalogModule } from "../catalog/catalog.module.js";
+import { BillingLedgerService } from "./application/billing-ledger.service.js";
 import { EntitlementsService } from "./application/entitlements.service.js";
 import { PaymentsService } from "./application/payments.service.js";
 import { PlansService } from "./application/plans.service.js";
@@ -29,6 +30,7 @@ import { PaymentWebhooksController } from "./presentation/payment-webhooks.contr
   imports: [CatalogModule, AuthModule],
   controllers: [BillingController, AdminBillingController, PaymentWebhooksController],
   providers: [
+    BillingLedgerService,
     PlansService,
     EntitlementsService,
     PaymentsService,

@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LEGAL_DOCUMENTS, LEGAL_SLUGS } from "@/lib/legal";
 import { isAdminPath, isWorkspacePath } from "@/lib/navigation";
 import { Brand } from "./brand";
 
@@ -27,6 +28,13 @@ export function SiteFooter() {
         <span>
           QUP © <bdi>{new Date().getFullYear()}</bdi> · جميع الحقوق محفوظة
         </span>
+        <nav className="footer-legal" aria-label="الوثائق القانونية">
+          {LEGAL_SLUGS.map((slug) => (
+            <Link key={slug} href={`/${slug}`}>
+              {LEGAL_DOCUMENTS[slug].title}
+            </Link>
+          ))}
+        </nav>
         <span>صُمّم للتعلّم، خطوة بخطوة.</span>
       </div>
     </footer>

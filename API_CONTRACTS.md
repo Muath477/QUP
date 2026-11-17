@@ -667,38 +667,63 @@ Webhook:
 - replay protection.
 - idempotent transitions.
 
-Implemented (provider: Stream — OPEN_QUESTIONS.md #2, #5a):
+Implemented (provider: Stream — OPEN_QUESTIONS.md #2, #5a; packages and bundles — #3, 2026-11-16):
 ```text
-GET   /exams/:examId/plans              plans on sale (none unless the exam is ACTIVE)
+GET   /plans                            PUBLIC. Every plan on sale, in display order (landing page)
+GET   /exams/:examId/plans              plans on sale that unlock the exam: its own and bundles with it
 GET   /exams/:examId/my-access          { examId, hasAccess, activeUntil }  (activeUntil null = no end)
 GET   /me/entitlements                  the caller's entitlements, newest first
+GET   /me/payments                      the caller's payments, newest first
 POST  /payments                         { planId } + Idempotency-Key → 201 new · 200 existing checkout
 GET   /payments/:id                     the caller's payment; poll this after returning from checkout
 POST  /payments/webhooks/stream         provider only; authenticated by signature, not by session
 
 GET   /admin/plans?examId=              permission billing.manage
-POST  /admin/plans                      { examId, code, name, priceMinor, currency, durationDays|null } → DRAFT
-PATCH /admin/plans/:id                  DRAFT only (422 PLAN_NOT_DRAFT otherwise)
+POST  /admin/plans                      { examIds[], code, name, description?, features?, highlighted?,
+                                          sortOrder?, priceMinor, compareAtPriceMinor?, currency,
+                                          durationDays|null } → DRAFT
+PATCH /admin/plans/:id                  any of the content fields; audited (plan.update, before/after)
 POST  /admin/plans/:id/activate         DRAFT → ACTIVE, audited
 POST  /admin/plans/:id/retire           → RETIRED, audited; existing entitlements are kept
+GET   /admin/payments?status=&cursor=&limit=  ledger, newest first, keyset cursor → { items, next }
+GET   /admin/billing/summary?days=7|30  { succeeded{count,amount}, refunded{count,amount}, abandoned }
 POST  /admin/entitlements               { studentId, examId, durationDays|null } manual grant, audited
 POST  /admin/entitlements/:id/revoke    idempotent, audited
 GET   /admin/students/lookup?identifier=  exact email or E.164 phone → { student, entitlements }
 ```
 - Money is `{ amountMinor, currency }`: an integer count of minor units (halalas), never a float.
-  SAR only; an offered plan costs at least 100 (1.00 SAR). Price and duration are frozen once ACTIVE.
-- Payment view: `{ id, planId, status, amount, checkoutUrl, checkoutExpiresAt, paidAt, createdAt }`.
-  `status`: `PENDING | SUCCEEDED | FAILED | REFUNDED | CANCELLED`. `checkoutUrl` is the provider's
-  hosted page, present only while PENDING. The client sends the plan and nothing else: the price is
-  the plan's, the student is the session's.
+  SAR only; an offered plan costs at least 100 (1.00 SAR).
+- A plan unlocks one exam or several (a bundle). Paying grants one entitlement per exam it covers,
+  in the same transaction. A bundle is on sale only while every exam in it is ACTIVE.
+- What a plan may change (plan-rules.ts): DRAFT — everything; ACTIVE — name, description,
+  features, highlighted, sortOrder, price, compareAtPrice, duration, but not its exams
+  (`422 PLAN_FIELDS_LOCKED`); RETIRED — nothing. `compareAtPriceMinor` must be above the price
+  (`422 PLAN_CONTENT_INVALID`). Features: up to 12 lines of 160 characters; blank lines dropped.
+- A price or duration change reaches the next buyer only: each payment keeps the amount it was
+  opened for and freezes what it bought (`payments.terms`: plan name, duration, exams). An open
+  checkout at the old price is cancelled and replaced on the student's next attempt.
+- Plan offer view: `{ id, name, description, features, highlighted, price, compareAtPrice,
+  durationDays, exams: [{ id, nameAr }], isBundle }` — no code, status or sort order.
+- Payment view: `{ id, planId, planName, examIds, status, amount, checkoutUrl, checkoutExpiresAt,
+  paidAt, refundableUntil, createdAt }`. `status`: `PENDING | SUCCEEDED | FAILED | REFUNDED |
+  CANCELLED`. `checkoutUrl` is the provider's hosted page, present only while PENDING.
+  `refundableUntil` = paidAt + 48 h on a paid payment (refund policy, OPEN_QUESTIONS.md #5). The
+  client sends the plan and nothing else: the price is the plan's, the student is the session's.
+- Buying is refused (`409 ALREADY_ENTITLED`) only when the student already has access to every
+  exam the plan covers. Access to some of a bundle's exams does not block it: those exams' new
+  period starts when the current one ends.
 - One open checkout per student and plan: asking again returns the same one (200) until it expires
-  (`CHECKOUT_TTL_MINUTES`, default 60), then a fresh one replaces it.
+  (`CHECKOUT_TTL_MINUTES`, default 60) or the plan's price/duration changes, then a fresh one
+  replaces it.
 - **Returning from the checkout page proves nothing.** A payment becomes SUCCEEDED only after a
   signed webhook *and* Stream's own API confirming status, amount and currency. Payment and
   entitlement then commit in one transaction; a replayed or duplicated event grants nothing more.
-- Full refund at Stream ⇒ payment REFUNDED, entitlement REVOKED. Partial refund ⇒ logged, access kept.
+- Full refund at Stream ⇒ payment REFUNDED, all its entitlements REVOKED. Partial refund ⇒ logged,
+  access kept.
 - Errors: `PLAN_NOT_AVAILABLE` (404), `ALREADY_ENTITLED` (409), `CHECKOUT_SUPERSEDED` (409),
   `IDEMPOTENCY_KEY_REUSED` (422), `PLAN_NOT_SELLABLE` (422), `INVALID_PLAN_TRANSITION` (422),
+  `PLAN_FIELDS_LOCKED` (422, `details.fields`), `PLAN_CONTENT_INVALID` (422, `details.problems`),
+  `EXAM_NOT_FOUND` (404, also for an archived exam on a plan),
   `PLAN_CODE_TAKEN` (409), `STUDENT_NOT_FOUND` (404, also for a partial identifier), `PAYMENT_NOT_FOUND` (404, also for another student's payment),
   `PAYMENTS_NOT_CONFIGURED` (503), `PAYMENT_PROVIDER_UNAVAILABLE` (503, nothing was charged),
   `WEBHOOK_SIGNATURE_INVALID` (401).

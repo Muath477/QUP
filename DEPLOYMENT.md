@@ -89,11 +89,27 @@ once DNS resolves.
    `pnpm build && pnpm admin:create --email <admin email>` (apps/api/README.md). To target
    production, set `$env:DATABASE_URL` (PowerShell) to `qup-db-prod`'s TLS URL for that session
    only: a variable already in the environment wins over the repository's `.env`.
-2. **Stream webhook** — in Stream's dashboard register
-   `https://api.qupedu.com/api/v1/payments/webhooks/stream` for payment events, then put the secret
-   it shows in `STREAM_WEBHOOK_SECRET`.
-3. Run one sandbox payment end to end before real money: the Stream adapter has only been tested
-   against a local fake of Stream's documented API.
+2. **Stream keys** — in CranL, on **qup-backend** (not qup-web), set `STREAM_API_KEY` (the
+   `x-api-key` value: base64 of `api-key:api-secret`) and `STREAM_WEBHOOK_SECRET`. Set both or
+   neither: the API refuses to start with one. Without them every checkout answers 503
+   `PAYMENTS_NOT_CONFIGURED` (as of 2026-11-16 neither is set).
+3. **Stream webhook** — in Stream's dashboard add a webhook:
+   - URL: `https://api.qupedu.com/api/v1/payments/webhooks/stream`
+   - events: `PAYMENT_SUCCEEDED`, `PAYMENT_FAILED`, `PAYMENT_CANCELED`, `PAYMENT_REFUNDED`,
+     `PAYMENT_MARKED_AS_PAID`
+   - secret: whatever the dashboard uses (typed or generated) must be exactly `STREAM_WEBHOOK_SECRET`
+     — Stream signs every delivery with it, and a mismatch answers 401 to every event.
+4. **Packages** — in `/admin/billing`, "الباقات الأساسية" creates the four drafts (one per exam and
+   the bundle) with the prices typed there; review each, then "اعرضها للبيع". A plan priced below
+   1.00 SAR cannot be offered.
+5. Run one sandbox payment end to end before real money (`STREAM_API_BASE_URL` pointing at Stream's
+   sandbox): the Stream adapter has only been tested against a local fake of Stream's documented
+   API. Check the payment turns `SUCCEEDED` in `/admin/billing` and the student gets access.
+
+**Migration 0018 before the code that needs it.** Billing code from 2026-11-16 reads `plan_exams`
+and `payments.terms` (migration 0018). CranL deploys `main` on push, so apply 0018 to
+`qup-db-prod` first (snapshot, `pnpm db:migrate`, `pnpm db:verify` — RUNBOOK.md §3), then merge.
+The migration is additive: the code already running keeps working on the migrated schema.
 
 ## Current state (2026-10-27)
 

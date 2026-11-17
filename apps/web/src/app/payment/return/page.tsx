@@ -60,9 +60,19 @@ function PaymentStatus() {
   switch (payment.data.status) {
     case "SUCCEEDED":
       return (
-        <p className="notice notice--success" role="status">
-          تم الدفع بنجاح، وتم تفعيل اشتراكك.
-        </p>
+        <div className="notice notice--success stack" role="status">
+          <strong>
+            تم الدفع بنجاح، وفُعّل اشتراكك
+            {payment.data.planName ? ` في «${payment.data.planName}»` : ""}.
+          </strong>
+          <p>
+            ابدأ بالتشخيص الكامل لترى ملف مهاراتك، ثم انتقل إلى التدريب على فواقدك.{" "}
+            <Link href="/dashboard">اذهب إلى مساحتك</Link>
+          </p>
+          <p className="small">
+            تفاصيل العملية محفوظة في <Link href="/subscriptions">سجل المدفوعات</Link>.
+          </p>
+        </div>
       );
     case "PENDING":
       return !gaveUp ? (
@@ -82,7 +92,8 @@ function PaymentStatus() {
     default:
       return (
         <p className="notice notice--error" role="status">
-          لم تكتمل عملية الدفع، ولم يُخصم منك شيء. يمكنك المحاولة من جديد من صفحة النتيجة.
+          لم تكتمل عملية الدفع، ولم يُخصم منك شيء. يمكنك المحاولة من جديد من{" "}
+          <Link href="/subscriptions">صفحة الباقات</Link>.
         </p>
       );
   }

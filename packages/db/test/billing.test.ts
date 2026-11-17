@@ -22,9 +22,10 @@ async function buildPlan(tx: Tx): Promise<{ studentId: string; examId: string; p
   );
   const plan = firstRow(
     await tx<IdRow[]>`
-      INSERT INTO plans (exam_id, code, name, price_minor, currency)
-      VALUES (${exam.id}, 'TEST-PLAN', 'plan', 1000, 'SAR') RETURNING id`,
+      INSERT INTO plans (code, name, price_minor, currency)
+      VALUES ('TEST-PLAN', 'plan', 1000, 'SAR') RETURNING id`,
   );
+  await tx`INSERT INTO plan_exams (plan_id, exam_id) VALUES (${plan.id}, ${exam.id})`;
   return { studentId: student.id, examId: exam.id, planId: plan.id };
 }
 
@@ -52,23 +53,55 @@ describe("billing replay protection", () => {
       await expectRejected(tx, SqlState.uniqueViolation, (sp) => grant(sp));
     }));
 
+  it("lets one bundle payment grant one entitlement per exam, and no more", () =>
+    withRollback(async (tx) => {
+      const { studentId, examId, planId } = await buildPlan(tx);
+      const second = firstRow(
+        await tx<IdRow[]>`
+          INSERT INTO exams (code, slug, name_ar) VALUES ('TEST-B2', 'test-b2', 'اختبار ٢') RETURNING id`,
+      );
+      const grant = (db: Tx, exam: string) => db`
+        INSERT INTO entitlements (student_id, plan_id, exam_id, source, source_reference, starts_at)
+        VALUES (${studentId}, ${planId}, ${exam}, 'PAYMENT', 'bundle-payment', now())`;
+      await grant(tx, examId);
+      await grant(tx, second.id);
+
+      await expectRejected(tx, SqlState.uniqueViolation, (sp) => grant(sp, second.id));
+    }));
+
   it("stores money as a non-negative amount in an ISO 4217 currency", () =>
     withRollback(async (tx) => {
-      const { examId } = await buildPlan(tx);
+      await buildPlan(tx);
 
       await expectRejected(
         tx,
         SqlState.checkViolation,
         (sp) => sp`
-          INSERT INTO plans (exam_id, code, name, price_minor, currency)
-          VALUES (${examId}, 'NEG', 'n', -1, 'SAR')`,
+          INSERT INTO plans (code, name, price_minor, currency) VALUES ('NEG', 'n', -1, 'SAR')`,
       );
       await expectRejected(
         tx,
         SqlState.checkViolation,
         (sp) => sp`
-          INSERT INTO plans (exam_id, code, name, price_minor, currency)
-          VALUES (${examId}, 'CUR', 'c', 100, 'riyal')`,
+          INSERT INTO plans (code, name, price_minor, currency) VALUES ('CUR', 'c', 100, 'riyal')`,
+      );
+    }));
+
+  it("keeps the 'was' price above the price, and features a list", () =>
+    withRollback(async (tx) => {
+      await expectRejected(
+        tx,
+        SqlState.checkViolation,
+        (sp) => sp`
+          INSERT INTO plans (code, name, price_minor, compare_at_price_minor, currency)
+          VALUES ('CMP', 'c', 1000, 1000, 'SAR')`,
+      );
+      await expectRejected(
+        tx,
+        SqlState.checkViolation,
+        (sp) => sp`
+          INSERT INTO plans (code, name, price_minor, currency, features)
+          VALUES ('FEAT', 'f', 1000, 'SAR', ${sp.json({ not: "a list" })})`,
       );
     }));
 });

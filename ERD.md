@@ -367,12 +367,17 @@ Critical uniqueness prevents duplicate evidence from same attempt/node.
 
 ### plans
 - id
-- exam_id
+- exam_id — deprecated (0018): nullable, no longer written, kept for rollback; dropped later
 - code/name
-- price_minor
+- description, features (JSON array of lines), highlighted, sort_order (0018: the pricing page)
+- price_minor, compare_at_price_minor nullable (> price_minor, the struck-through "was" price)
 - currency
 - duration_days nullable
 - status
+
+### plan_exams (0018)
+- plan_id (cascade), exam_id (restrict); PK (plan_id, exam_id)
+- the exams a plan unlocks: one for a single-exam plan, several for a bundle
 
 ### payments
 - id
@@ -384,10 +389,11 @@ Critical uniqueness prevents duplicate evidence from same attempt/node.
 - idempotency_key
 - checkout_url / checkout_expires_at (migration 0009: the provider's hosted page and its expiry)
 - redacted provider payload
+- terms JSON (0018): `{ planName, durationDays, examIds }` frozen at checkout — what was bought
 - created_at/paid_at
 
 One PENDING payment per student + plan (partial unique index, 0009): two open links for one
-purchase are how a student pays twice.
+purchase are how a student pays twice. Ledger index on (created_at, id) (0018).
 
 ### entitlements
 - id
@@ -398,6 +404,9 @@ purchase are how a student pays twice.
 - source_reference
 - starts_at/ends_at
 - status
+
+Replay guard: unique (source, source_reference, exam_id) where source_reference is set (0018,
+was (source, source_reference)): one bundle payment grants exactly one entitlement per exam.
 
 ## Operations
 

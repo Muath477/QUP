@@ -120,9 +120,15 @@ refused because of the mismatch.
   1. Find the payment row (`payments`, by the student).
   2. If it is `PENDING`, have Stream redeliver the event from its dashboard. Delivery is idempotent:
      a replay never grants twice.
-  3. If Stream says paid but the event never arrives, grant access as an admin with
-     `POST /api/v1/admin/entitlements` (API_CONTRACTS.md "Billing"; audited, no screen yet), and
-     tell Stream support.
+  3. If Stream says paid but the event never arrives, grant access as an admin from
+     `/admin/billing` → "وصول الطلاب" (audited) — once per exam for a bundle — and tell Stream
+     support.
+- **Every payment** is listed in `/admin/billing` → "المدفوعات" with the student, the plan, Stream's
+  payment id and the refund deadline (paid + 48 h).
+- **A refund:** make it in Stream's dashboard. Its `PAYMENT_REFUNDED` webhook marks the payment
+  REFUNDED and revokes every entitlement it granted (all exams of a bundle). Nothing to do in QUP.
+- **Price change:** edit the plan in `/admin/billing`. It applies to the next checkout; earlier
+  payments keep their amount and terms. The change is in the audit log (`plan.update`).
 - **Never** mark a payment as paid in the database by hand.
 
 ## 7. Turning AI off

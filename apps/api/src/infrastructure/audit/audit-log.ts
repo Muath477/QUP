@@ -21,6 +21,7 @@ export const AuditAction = {
   TaxonomyPublished: "taxonomy.publish",
   QuestionPublished: "question.publish",
   QuestionArchived: "question.archive",
+  PlanUpdated: "plan.update",
   PlanActivated: "plan.activate",
   PlanRetired: "plan.retire",
   EntitlementGranted: "entitlement.grant",

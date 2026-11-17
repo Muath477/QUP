@@ -289,8 +289,8 @@ function ReadinessCard({
 
   const published = questions.data?.page.total ?? null;
   const activePlans =
-    plans.data?.items.filter((plan) => plan.examId === examId && plan.status === "ACTIVE").length ??
-    null;
+    plans.data?.items.filter((plan) => plan.examIds.includes(examId) && plan.status === "ACTIVE")
+      .length ?? null;
   const checks: Check[] = [
     {
       label: "تصنيف منشور",

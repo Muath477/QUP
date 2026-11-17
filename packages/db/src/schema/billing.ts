@@ -1,10 +1,12 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   index,
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -34,16 +36,41 @@ import { exams } from "./taxonomy.js";
  * Money is stored in minor units as an integer. Never a float.
  */
 
+/** What a buyer is shown and what they receive: one list item per line. */
+export type PlanFeatures = string[];
+
+/**
+ * What a payment bought, frozen at checkout (0018). A later change to the
+ * plan's price, duration or exams never changes what an earlier buyer gets.
+ */
+export interface PurchasedTerms {
+  planName: string;
+  durationDays: number | null;
+  examIds: string[];
+}
+
 export const plans = pgTable(
   "plans",
   {
     id: primaryKeyId(),
-    examId: uuid("exam_id")
-      .notNull()
-      .references(() => exams.id, { onDelete: "restrict" }),
+    /**
+     * Deprecated (0018): the exams a plan covers live in `plan_exams`, so one
+     * plan can cover several. Kept, nullable and no longer written, only so
+     * 0018 can be rolled back; to be dropped by a later migration.
+     */
+    examId: uuid("exam_id").references(() => exams.id, { onDelete: "restrict" }),
     code: text("code").notNull(),
     name: text("name").notNull(),
+    /** A one-line pitch under the name. */
+    description: text("description"),
+    features: jsonb("features").$type<PlanFeatures>().notNull().default([]),
+    /** Shown as the recommended plan. */
+    highlighted: boolean("highlighted").notNull().default(false),
+    /** Display order on the pricing page, ascending. */
+    sortOrder: integer("sort_order").notNull().default(0),
     priceMinor: integer("price_minor").notNull(),
+    /** The struck-through "was" price, when the plan is on offer. */
+    compareAtPriceMinor: integer("compare_at_price_minor"),
     currency: text("currency").notNull(),
     durationDays: integer("duration_days"),
     status: planStatusEnum("status").notNull().default("DRAFT"),
@@ -55,11 +82,33 @@ export const plans = pgTable(
     index("plans_exam_status_idx").on(table.examId, table.status),
     check("plans_price_non_negative", sql`${table.priceMinor} >= 0`),
     check(
+      "plans_compare_at_above_price",
+      sql`${table.compareAtPriceMinor} IS NULL OR ${table.compareAtPriceMinor} > ${table.priceMinor}`,
+    ),
+    check(
       "plans_duration_positive",
       sql`${table.durationDays} IS NULL OR ${table.durationDays} > 0`,
     ),
+    check("plans_features_array", sql`jsonb_typeof(${table.features}) = 'array'`),
     // ISO 4217 alphabetic code.
     check("plans_currency_format", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+  ],
+);
+
+/** The exams a plan gives access to: one for a single-exam plan, several for a bundle. */
+export const planExams = pgTable(
+  "plan_exams",
+  {
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => plans.id, { onDelete: "cascade" }),
+    examId: uuid("exam_id")
+      .notNull()
+      .references(() => exams.id, { onDelete: "restrict" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.planId, table.examId] }),
+    index("plan_exams_exam_idx").on(table.examId),
   ],
 );
 
@@ -84,6 +133,8 @@ export const payments = pgTable(
     checkoutExpiresAt: timestamp("checkout_expires_at", { withTimezone: true, mode: "date" }),
     /** SECURITY.md — redacted payload only. No card data, no provider secrets. */
     providerPayloadRedacted: jsonb("provider_payload_redacted"),
+    /** Null only on payments made before 0018; those are read through their plan. */
+    terms: jsonb("terms").$type<PurchasedTerms>(),
     createdAt: createdAt(),
     paidAt: timestamp("paid_at", { withTimezone: true, mode: "date" }),
   },
@@ -93,6 +144,8 @@ export const payments = pgTable(
       .on(table.provider, table.providerReference)
       .where(sql`provider_reference IS NOT NULL`),
     index("payments_student_status_idx").on(table.studentId, table.status),
+    // The admin ledger and a student's history: newest first, keyset on (created_at, id).
+    index("payments_created_at_idx").on(table.createdAt, table.id),
     /**
      * One open checkout per student and plan: two payment links for the same
      * purchase are how a student ends up paying twice.
@@ -127,11 +180,12 @@ export const entitlements = pgTable(
   },
   (table) => [
     /**
-     * Replay guard: one entitlement per (source, reference) pair. A webhook
-     * delivered twice cannot grant access twice.
+     * Replay guard: one entitlement per (source, reference, exam). A webhook
+     * delivered twice cannot grant access twice; a bundle payment grants
+     * exactly one entitlement for each exam it covers (0018).
      */
-    uniqueIndex("entitlements_source_reference_unique")
-      .on(table.source, table.sourceReference)
+    uniqueIndex("entitlements_source_reference_exam_unique")
+      .on(table.source, table.sourceReference, table.examId)
       .where(sql`source_reference IS NOT NULL`),
     // ERD.md indexing: entitlements by student/exam/status.
     index("entitlements_student_exam_status_idx").on(table.studentId, table.examId, table.status),
@@ -144,10 +198,15 @@ export const entitlements = pgTable(
 
 /* -------------------------------------------------------------------------- */
 
-export const plansRelations = relations(plans, ({ one, many }) => ({
-  exam: one(exams, { fields: [plans.examId], references: [exams.id] }),
+export const plansRelations = relations(plans, ({ many }) => ({
+  exams: many(planExams),
   payments: many(payments),
   entitlements: many(entitlements),
+}));
+
+export const planExamsRelations = relations(planExams, ({ one }) => ({
+  plan: one(plans, { fields: [planExams.planId], references: [plans.id] }),
+  exam: one(exams, { fields: [planExams.examId], references: [exams.id] }),
 }));
 
 export const paymentsRelations = relations(payments, ({ one }) => ({

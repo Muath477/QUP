@@ -14,25 +14,38 @@ import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { FastifyRequest } from "fastify";
 
 import { actorFrom } from "../../../common/http/actor-context.js";
+import {
+  type AnalyticsWindowQuery,
+  analyticsWindowQuery,
+} from "../../../common/validation/analytics-window.js";
 import { uuidParam } from "../../../common/validation/schemas.js";
 import { ZodValidationPipe } from "../../../common/validation/zod-validation.pipe.js";
 import { Permission } from "../../rbac/permissions.js";
 import { RequirePermissions } from "../../rbac/require-permissions.js";
+import { BillingLedgerService } from "../application/billing-ledger.service.js";
 import { EntitlementsService } from "../application/entitlements.service.js";
 import { PlansService } from "../application/plans.service.js";
 import {
   type CreatePlanBody,
   createPlanBody,
+  encodeLedgerCursor,
   type GrantEntitlementBody,
   grantEntitlementBody,
+  type ListPaymentsQuery,
   type ListPlansQuery,
+  listPaymentsQuery,
   listPlansQuery,
   type StudentLookupQuery,
   studentLookupQuery,
   type UpdatePlanBody,
   updatePlanBody,
 } from "./billing.dto.js";
-import { toAdminEntitlementView, toAdminPlanView } from "./billing.views.js";
+import {
+  toAdminEntitlementView,
+  toAdminPaymentView,
+  toAdminPlanView,
+  toRevenueSummaryView,
+} from "./billing.views.js";
 
 const uuid = new ZodValidationPipe(uuidParam);
 
@@ -44,6 +57,7 @@ export class AdminBillingController {
   constructor(
     private readonly plans: PlansService,
     private readonly entitlements: EntitlementsService,
+    private readonly ledger: BillingLedgerService,
   ) {}
 
   @Get("plans")
@@ -62,12 +76,17 @@ export class AdminBillingController {
   }
 
   @Patch("plans/:id")
-  @ApiOperation({ summary: "Edit a DRAFT plan. An offered plan keeps its price and duration." })
+  @ApiOperation({
+    summary: "Edit a plan. Audited.",
+    description:
+      "DRAFT: anything. ACTIVE: wording, features, order, price and duration — the next buyer pays the new price, earlier payments keep theirs; the exams stay (422 PLAN_FIELDS_LOCKED). RETIRED: nothing.",
+  })
   async updatePlan(
     @Param("id", uuid) id: string,
     @Body(new ZodValidationPipe(updatePlanBody)) body: UpdatePlanBody,
+    @Req() request: FastifyRequest,
   ) {
-    return toAdminPlanView(await this.plans.update(id, body));
+    return toAdminPlanView(await this.plans.update(id, body, actorFrom(request)));
   }
 
   @Post("plans/:id/activate")
@@ -84,6 +103,26 @@ export class AdminBillingController {
   })
   async retirePlan(@Param("id", uuid) id: string, @Req() request: FastifyRequest) {
     return toAdminPlanView(await this.plans.retire(id, actorFrom(request)));
+  }
+
+  @Get("payments")
+  @ApiOperation({ summary: "Every payment, newest first, keyset-paginated (cursor = next)." })
+  async listPayments(@Query(new ZodValidationPipe(listPaymentsQuery)) query: ListPaymentsQuery) {
+    const page = await this.ledger.list({
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.cursor ? { before: query.cursor } : {}),
+      limit: query.limit,
+    });
+    return {
+      items: page.items.map(toAdminPaymentView),
+      next: page.next ? encodeLedgerCursor(page.next) : null,
+    };
+  }
+
+  @Get("billing/summary")
+  @ApiOperation({ summary: "Payments over the last 7 or 30 days: kept, refunded, abandoned." })
+  async summary(@Query(new ZodValidationPipe(analyticsWindowQuery)) query: AnalyticsWindowQuery) {
+    return toRevenueSummaryView(await this.ledger.summary(query.days));
   }
 
   @Get("students/lookup")

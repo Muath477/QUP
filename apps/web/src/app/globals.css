@@ -3936,3 +3936,536 @@
     animation-delay: var(--motion-base);
   }
 }
+
+/* Legal centre: terms, privacy and refunds share one reading layout. */
+@layer components {
+  :where(.legal-hero) {
+    background: var(--color-navy);
+    color: var(--color-on-navy-muted);
+  }
+  :where(.legal-hero__inner) {
+    max-width: var(--content-width);
+    margin-inline: auto;
+    padding: 3.5rem 2rem 0;
+  }
+  :where(.legal-hero h1) {
+    color: var(--color-white);
+    font-size: clamp(1.9rem, 3.4vw, 2.6rem);
+  }
+  :where(.legal-hero__summary) {
+    max-width: 40rem;
+    margin-top: var(--space-2);
+    font-size: 1.05rem;
+  }
+  :where(.legal-hero__meta) {
+    margin-top: var(--space-3);
+    font-size: var(--text-small);
+  }
+  :where(.legal-tabs) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin-top: var(--space-8);
+  }
+  :where(.legal-tabs a) {
+    padding: 0.7rem 1.25rem;
+    border-radius: var(--radius) var(--radius) 0 0;
+    color: var(--color-on-navy-muted);
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+      background-color var(--motion-fast) var(--ease-out),
+      color var(--motion-fast) var(--ease-out);
+  }
+  :where(.legal-tabs a:hover) {
+    color: var(--color-white);
+    background: var(--color-navy-elevated);
+  }
+  :where(.legal-tabs a[aria-current="page"]) {
+    background: var(--color-surface);
+    color: var(--color-navy);
+  }
+  :where(.legal-body) {
+    max-width: var(--content-width);
+    margin-inline: auto;
+    padding: 3rem 2rem 5rem;
+    display: grid;
+    gap: 3rem;
+    align-items: start;
+  }
+  :where(.legal-toc) {
+    display: none;
+  }
+  @media (min-width: 60rem) {
+    :where(.legal-body) {
+      grid-template-columns: 15rem minmax(0, 48rem);
+    }
+    :where(.legal-toc) {
+      display: block;
+      position: sticky;
+      top: 1.5rem;
+    }
+  }
+  :where(.legal-toc__title) {
+    margin-bottom: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+    font-weight: 600;
+  }
+  :where(.legal-toc ol) {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-inline-start: 2px solid var(--color-border);
+  }
+  :where(.legal-toc a) {
+    display: block;
+    margin-inline-start: -2px;
+    padding: 0.4rem 1rem;
+    border-inline-start: 2px solid transparent;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    text-decoration: none;
+  }
+  :where(.legal-toc a:hover) {
+    border-color: var(--color-blue);
+    color: var(--color-navy);
+  }
+  :where(.legal-article) {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+    min-width: 0;
+  }
+  :where(.legal-intro) {
+    color: var(--color-navy);
+    font-size: 1.12rem;
+    line-height: 1.9;
+  }
+  :where(.legal-highlights) {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0;
+  }
+  :where(.legal-highlights div) {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: var(--space-1);
+    padding: 1.25rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-large);
+    background: var(--color-white);
+    box-shadow: var(--shadow-sm);
+  }
+  :where(.legal-highlights dt) {
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+  :where(.legal-highlights dd) {
+    margin: 0;
+    color: var(--color-navy);
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+  :where(.legal-section) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding-top: 2.5rem;
+    border-top: 1px solid var(--color-border);
+  }
+  :where(.legal-section h2) {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: 1.3rem;
+  }
+  :where(.legal-section__number) {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--radius-small);
+    background: var(--color-blue-surface);
+    color: var(--color-blue);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+  }
+  :where(.legal-list, .legal-steps) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  :where(.legal-list li) {
+    position: relative;
+    padding-inline-start: 1.4rem;
+  }
+  :where(.legal-list li)::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: 0.2rem;
+    top: 0.75em;
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 50%;
+    background: var(--color-blue);
+  }
+  :where(.legal-list strong) {
+    color: var(--color-navy);
+    font-weight: 600;
+  }
+  :where(.legal-steps) {
+    counter-reset: legal-step;
+  }
+  :where(.legal-steps li) {
+    counter-increment: legal-step;
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: var(--space-3);
+    align-items: start;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-white);
+  }
+  :where(.legal-steps li)::before {
+    content: counter(legal-step);
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: var(--color-navy);
+    color: var(--color-white);
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+  :where(.legal-note) {
+    padding: 0.9rem 1.25rem;
+    border-inline-start: 3px solid var(--color-blue);
+    border-radius: var(--radius-small);
+    background: var(--color-blue-surface);
+    color: var(--color-navy);
+    font-weight: 600;
+  }
+  :where(.legal-see-also) {
+    color: var(--color-text-muted);
+  }
+  :where(.legal-see-also a) {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-weight: 600;
+  }
+  :where(.legal-see-also .icon) {
+    width: 1rem;
+    height: 1rem;
+  }
+  :where(.legal-contact) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: 2rem;
+    border-radius: var(--radius-large);
+    background: var(--color-navy);
+    color: var(--color-on-navy-muted);
+  }
+  :where(.legal-contact h2) {
+    color: var(--color-white);
+    font-size: 1.3rem;
+  }
+  :where(.legal-contact ul) {
+    display: grid;
+    gap: var(--space-3);
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  @media (min-width: 40rem) {
+    :where(.legal-highlights) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    :where(.legal-contact ul) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  :where(.legal-contact li) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--color-navy-line);
+    border-radius: var(--radius);
+    background: var(--color-navy-elevated);
+    font-size: var(--text-small);
+  }
+  :where(.legal-contact li a) {
+    color: var(--color-white);
+    font-size: 1.05rem;
+    font-weight: 600;
+    text-align: end;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+  :where(.legal-contact li a:hover) {
+    text-decoration: underline;
+  }
+  :where(.legal-acknowledgement) {
+    color: var(--color-text-muted);
+    font-size: 0.92rem;
+  }
+  :where(.footer-legal) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+  }
+  :where(.footer-legal a) {
+    color: var(--color-on-navy-muted);
+    text-decoration: none;
+  }
+  :where(.footer-legal a:hover) {
+    color: var(--color-white);
+  }
+  :where(.auth-consent, .plan-terms) {
+    font-size: var(--text-small);
+    color: var(--color-text-muted);
+  }
+  :where(.auth-consent) {
+    text-align: center;
+  }
+  @media (max-width: 40rem) {
+    :where(.legal-hero__inner) {
+      padding: 2.5rem 1.25rem 0;
+    }
+    :where(.legal-body) {
+      padding: 2rem 1.25rem 4rem;
+    }
+    :where(.legal-tabs a) {
+      padding: 0.6rem 0.9rem;
+      font-size: 0.85rem;
+    }
+    :where(.legal-contact) {
+      padding: 1.5rem;
+    }
+  }
+  @media print {
+    :where(.legal-tabs, .legal-toc) {
+      display: none;
+    }
+    :where(.legal-hero) {
+      background: none;
+      color: var(--color-text);
+    }
+    :where(.legal-hero h1) {
+      color: var(--color-navy);
+    }
+  }
+}
+
+/* Plans: bundles, features and the payment ledger (billing, 2026-11-16).
+   Same tokens; the recommended plan is navy — gold stays earned (UI_BRAND.md). */
+@layer components {
+  :where(.plan-card) {
+    position: relative;
+  }
+  :where(.plan-card--highlighted) {
+    border-color: var(--color-navy);
+    box-shadow: var(--shadow);
+  }
+  :where(.plan-card__ribbon) {
+    position: absolute;
+    inset-block-start: -0.8rem;
+    inset-inline-start: 1.25rem;
+    padding: 0.2rem 0.75rem;
+    border-radius: 999px;
+    background: var(--color-navy);
+    color: var(--color-white);
+    font-size: var(--text-small);
+    font-weight: 700;
+  }
+  :where(.plan-card__head) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  :where(.plan-card__pitch) {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+  :where(.plan-card__exams) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  :where(.plan-card__exams li) {
+    padding: 0.15rem 0.65rem;
+    border-radius: var(--radius-small);
+    background: var(--color-blue-surface);
+    color: var(--color-blue-strong);
+    font-size: var(--text-small);
+    font-weight: 600;
+  }
+  :where(.plan-price) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.6rem;
+  }
+  :where(.plan-price__was) {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+  :where(.plan-figure .plan-price__was) {
+    margin-inline-start: 0.5rem;
+    font-size: 0.85rem;
+  }
+  :where(.plan-card__features) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.92rem;
+  }
+  :where(.plan-card__features li) {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  :where(.plan-card__features svg, .plan-card__owned svg) {
+    flex-shrink: 0;
+    margin-top: 0.2rem;
+    color: var(--color-success);
+  }
+  :where(.plan-card__owned) {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    width: 100%;
+    margin-top: auto;
+    padding: 0.7rem 0.85rem;
+    border-radius: var(--radius-small);
+    background: var(--color-success-surface);
+    color: var(--color-success);
+    font-weight: 600;
+  }
+
+  :where(.home-pricing) {
+    max-width: var(--content-width);
+    margin-inline: auto;
+    padding: 6rem 2rem;
+    border-top: 1px solid var(--color-border);
+  }
+  :where(.home-pricing .plan-grid) {
+    padding-top: 0.8rem;
+  }
+
+  :where(.payment-list) {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  :where(.payment-row) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+  :where(.payment-row__main) {
+    display: flex;
+    flex: 1 1 16rem;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+  :where(.payment-row__amount) {
+    color: var(--color-navy);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  :where(.status-badge--succeeded) {
+    background: var(--color-success-surface);
+    color: var(--color-success);
+  }
+  :where(.status-badge--pending) {
+    background: var(--color-blue-surface);
+    color: var(--color-blue);
+  }
+  :where(.status-badge--failed, .status-badge--cancelled, .status-badge--refunded) {
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+  }
+
+  :where(.stat-row) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    gap: 1rem;
+    margin: 0;
+  }
+  :where(.stat-row > div) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+  }
+  :where(.stat-row dt) {
+    color: var(--color-text-muted);
+    font-size: var(--text-small);
+  }
+  :where(.stat-row dd) {
+    margin: 0;
+    color: var(--color-navy);
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  :where(.check-group) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+  }
+  :where(fieldset.field) {
+    border: 0;
+    margin: 0;
+    padding: 0;
+  }
+  :where(
+    .admin-form > fieldset.field,
+    .admin-form > .admin-form__row,
+    .admin-form > .check-field,
+    .admin-form > .field:has(textarea)
+  ) {
+    grid-column: 1 / -1;
+  }
+  :where(.admin-form__row) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+    gap: 1rem 1.25rem;
+  }
+  :where(.admin-form textarea.field__input) {
+    min-height: 8rem;
+    resize: vertical;
+  }
+  @media (max-width: 40rem) {
+    :where(.home-pricing) {
+      padding: 4rem 1.25rem;
+    }
+  }
+}

@@ -56,7 +56,7 @@ scripts. Adding a third-party script means adding its origin to the policy, deli
 | `/` | Landing page |
 | `/register`, `/login` | Account (email or phone; React Hook Form + Zod) |
 | `/dashboard` | Per exam: the next step (from the API), standing, strengths, gaps and this week's progress; then the session history with filter, pagination and result/resume links |
-| `/subscriptions` | Exam selector, server-priced plans, access state and hosted checkout |
+| `/subscriptions` | Every plan on sale (single exams and bundles) with features, owned state, hosted checkout and payment history |
 | `/account` | Account details, sign out, and revoke other device sessions |
 | `/exams` | Exams on offer |
 | `/exams/:examId/diagnostic` | The free mini diagnostic: start or resume, answer, skip |
@@ -135,7 +135,8 @@ brand palette, spacing, form controls, state treatments and an authored stroke i
   the user id and page/filter, and authentication changes clear cached account data. Successful
   answer/skip submissions invalidate session history. The dashboard shows metadata/progress
   only; it does not expose the full paid skill report.
-- Plans are shared between the preliminary result and `/subscriptions` through `PlanOffers`.
+- Plan cards are shared by the preliminary result (`PlanOffers`: plans unlocking that exam),
+  `/subscriptions` (`PlanCatalog`: every plan) and the landing page (`PricingPreview`, public).
   Prices and entitlement status come from the API, and checkout sends only a plan id and an
   idempotency key. The interface explicitly identifies full diagnostic/training as still in
   development. A successful redirect is never treated as proof of payment.

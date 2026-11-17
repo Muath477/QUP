@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Fold } from "@/components/fold";
 import { Icon } from "@/components/icon";
+import { PricingPreview } from "@/components/pricing-preview";
 import { SampleSkillMap } from "@/components/sample-skill-map";
 
 /** What sets QUP apart: product rules the platform enforces, not marketing numbers. */
@@ -62,7 +63,7 @@ const questions = [
   {
     question: "هل الباقة تشمل كل الاختبارات؟",
     answer:
-      "لكل اختبار باقاته المستقلة. تجد السعر والمدة المتاحين في صفحة الباقات قبل إتمام الدفع.",
+      "كل باقة مكتوب عليها ما تشمله: باقة لاختبار واحد، أو باقة شاملة تفتح عدة اختبارات معًا. تجد السعر والمدة وما تشمله كل باقة قبل إتمام الدفع، ولا يتجدد الاشتراك تلقائيًا.",
   },
 ];
 
@@ -134,6 +135,8 @@ export default function LandingPage() {
           </ul>
         </div>
       </section>
+
+      <PricingPreview />
 
       <section className="home-faq" id="questions" aria-labelledby="faq-title">
         <div className="home-section-head">
