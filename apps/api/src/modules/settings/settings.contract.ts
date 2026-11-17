@@ -10,12 +10,14 @@ export type {
   FullReassessmentGateValue,
   PreliminaryLevelsValue,
   SettingKey,
+  StudyChatRulesValue,
 } from "./domain/setting-definitions.js";
 export {
   DEFAULT_FULL_REASSESSMENT_GATE,
   DEFAULT_PRELIMINARY_LEVELS,
   FULL_REASSESSMENT_GATE_KEY,
   PRELIMINARY_LEVELS_KEY,
+  STUDY_CHAT_RULES_KEY,
 } from "./domain/setting-definitions.js";
 
 export interface SettingsReader {

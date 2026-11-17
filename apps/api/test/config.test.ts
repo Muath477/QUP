@@ -97,6 +97,7 @@ describe("configuration", () => {
     expect(loadConfig({ DATABASE_URL: VALID_URL }).ai).toEqual({
       provider: { kind: "fake" },
       studentExplanations: true,
+      studyChat: true,
       timeoutMs: 15_000,
       maxAttempts: 2,
     });
@@ -162,6 +163,22 @@ describe("configuration", () => {
       baseUrl: "https://api.x.ai/v1",
       apiKey: "xai-test-key",
       model: "grok-test-model",
+      jsonMode: false,
+    });
+    expect(
+      loadConfig({
+        DATABASE_URL: VALID_URL,
+        ...PRODUCTION,
+        AI_PROVIDER: "deepseek",
+        AI_API_KEY: "sk-deepseek-test",
+      }).ai.provider,
+    ).toEqual({
+      kind: "openai-compatible",
+      name: "deepseek",
+      baseUrl: "https://api.deepseek.com/v1",
+      apiKey: "sk-deepseek-test",
+      model: "deepseek-chat",
+      jsonMode: true,
     });
     expect(
       loadConfig({
