@@ -95,7 +95,8 @@ Assumptions: OPEN_QUESTIONS.md #19a.
     available for a question the student actually answered wrongly.
   - The answer is cached per mistake (the latest successful run since that answer), and each
     student is capped at 30 runs a day.
-  - **Off by default:** `AI_STUDENT_EXPLANATIONS=true` turns it on (#18).
+  - **On for every student, free,** whenever a provider is configured (#18, decided 2026-11-17).
+    `AI_STUDENT_EXPLANATIONS=false` hides it.
     `GET /me/ai-features` tells the web app whether to show the button.
 
 ## Structured Output

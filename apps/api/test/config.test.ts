@@ -96,7 +96,7 @@ describe("configuration", () => {
   it("uses the test AI provider outside production and none in production", () => {
     expect(loadConfig({ DATABASE_URL: VALID_URL }).ai).toEqual({
       provider: { kind: "fake" },
-      studentExplanations: false,
+      studentExplanations: true,
       timeoutMs: 15_000,
       maxAttempts: 2,
     });
@@ -112,7 +112,6 @@ describe("configuration", () => {
       AI_PROVIDER: "anthropic",
       ANTHROPIC_API_KEY: "sk-ant-test-key",
       AI_EFFORT: "low",
-      AI_STUDENT_EXPLANATIONS: "true",
     });
     expect(config.ai.provider).toEqual({
       kind: "anthropic",
@@ -120,7 +119,12 @@ describe("configuration", () => {
       model: "claude-opus-5-5",
       effort: "low",
     });
+    // Free for every student by default (OPEN_QUESTIONS.md #18); the flag can still hide it.
     expect(config.ai.studentExplanations).toBe(true);
+    expect(
+      loadConfig({ DATABASE_URL: VALID_URL, AI_STUDENT_EXPLANATIONS: "false" }).ai
+        .studentExplanations,
+    ).toBe(false);
   });
 
   it("gives a real model more time per attempt than the test provider", () => {

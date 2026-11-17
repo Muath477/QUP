@@ -167,7 +167,7 @@ const envSchema = z.object({
    * Students may ask for a personalised explanation of a wrong answer
    * (OPEN_QUESTIONS.md #18). Off until the product owner turns it on.
    */
-  AI_STUDENT_EXPLANATIONS: booleanFlag.default(false),
+  AI_STUDENT_EXPLANATIONS: booleanFlag.default(true),
   /**
    * Per attempt; the attempt is aborted when it runs out. Defaults to
    * FAKE_AI_TIMEOUT_MS for the test provider and REAL_AI_TIMEOUT_MS for a

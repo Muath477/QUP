@@ -54,8 +54,9 @@ editor works without it. Do not set `AI_PROVIDER=fake` there: the API refuses to
 it on Claude, set `AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`. For another vendor, set
 `AI_PROVIDER` to `grok`, `openai`, `deepseek`, `groq`, `openrouter`, `gemini` or `openai-compatible`
 (the last one also needs `AI_BASE_URL`), plus `AI_API_KEY` and `AI_MODEL`. `AI_MODEL` (default
-`claude-opus-5-5`) and `AI_EFFORT` (default `medium`) are optional. Student mistake explanations stay
-off until `AI_STUDENT_EXPLANATIONS=true` (OPEN_QUESTIONS.md #18, #19b).
+`claude-opus-5-5`) and `AI_EFFORT` (default `medium`) are optional. Student mistake explanations are
+free for every student and turn on with the provider; `AI_STUDENT_EXPLANATIONS=false` hides them
+(OPEN_QUESTIONS.md #18, #19b).
 
 ### Environment — qup-web
 
