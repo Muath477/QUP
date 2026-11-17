@@ -823,8 +823,8 @@ Added in V1.2 (AI_INTEGRATION.md "V1.2", "Study Chat"; OPEN_QUESTIONS.md #19e):
 GET  /admin/ai/knowledge?examId&limit&offset          ai.manage
 POST /admin/ai/knowledge                              ai.manage
 POST /admin/ai/knowledge/:id/archive                  ai.manage
-GET  /exams/:examId/ai-chat                           student, subscribed
-POST /exams/:examId/ai-chat                           student, subscribed
+GET  /exams/:examId/ai-chat                           student
+POST /exams/:examId/ai-chat                           student, subscribed or free trial
 DELETE /exams/:examId/ai-chat                         student
 ```
 
@@ -838,16 +838,20 @@ DELETE /exams/:examId/ai-chat                         student
   - Errors: `404 AI_NODE_NOT_FOUND`, `400 KNOWLEDGE_CONTENT_EMPTY`.
 - `POST /admin/ai/knowledge/:id/archive` returns `204`, or `404 KNOWLEDGE_ITEM_NOT_FOUND`.
 - `question-drafts` now also returns `styleExamples`: the number of library passages it imitated.
-- `ai-features?examId=` returns `{ mistakeExplanations, studyChat, subscribed: boolean | null }`.
-  `subscribed` is null when no exam is given.
+- `ai-features?examId=` returns `{ mistakeExplanations, studyChat, subscribed: boolean | null,
+  freeChatMessagesLeft: number | null }`.
+  - `subscribed` is null when no exam is given.
+  - `freeChatMessagesLeft` counts the free trial replies left; it is null for subscribers.
 - `GET ai-chat` returns `{ items: [{ id, role: STUDENT|ASSISTANT, content, createdAt }] }`, oldest
   first, up to the latest 60.
 - `POST ai-chat`:
   - Body: `{ message (1..1000) }`.
   - Returns `{ messages: [student, assistant], kind: ANSWERED|OFF_TOPIC|REFUSED, sources:
-    [title] }`.
+    [title], freeRemaining: number | null }`.
+  - A student without a subscription may send as many messages as the free trial allows (setting
+    `ai.freeTrial`, default 5 per account).
   - Errors:
-    - `403 AI_REQUIRES_SUBSCRIPTION`;
+    - `403 AI_FREE_LIMIT_REACHED` when the free trial is used up;
     - `503 AI_STUDY_CHAT_OFF`;
     - `422 AI_CHAT_LIMIT_REACHED` after 40 messages in a day;
     - the usual `503 AI_*` provider errors. Nothing is saved when the model fails.

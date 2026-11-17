@@ -24,6 +24,7 @@ import { buildTestApp, testConfig } from "../support/test-app.js";
 const COOKIE = "qup_session";
 const PASSWORD = "knowledge chat passphrase";
 const RULES_KEY = "ai.studyChat.rules";
+const TRIAL_KEY = "ai.freeTrial";
 
 /** Every request the model received, newest last. */
 const prompts: AiCompletionRequest[] = [];
@@ -204,26 +205,57 @@ describe("the study chat", () => {
     other = null;
   });
 
-  it("is for subscribers of the exam only", async () => {
+  it("gives a student without a subscription a few free replies, then asks them to subscribe", async () => {
     const student = await register("kc-unsubscribed");
+    const settings = (await call(app, admin, "GET", "/admin/settings")).json<{
+      items: { key: string; version: number }[];
+    }>();
+    const version = settings.items.find((item) => item.key === TRIAL_KEY)?.version ?? 0;
+    const saved = await call(app, admin, "PUT", `/admin/settings/${TRIAL_KEY}`, {
+      expectedVersion: version,
+      value: { chatMessages: 2 },
+    });
+    expect(saved.statusCode, saved.payload).toBe(200);
+
     const features = await call(app, student.token, "GET", `/me/ai-features?examId=${exam.examId}`);
     expect(features.json()).toEqual({
       mistakeExplanations: true,
       studyChat: true,
       subscribed: false,
+      freeChatMessagesLeft: 2,
     });
-    for (const [method, payload] of [["GET"], ["POST", { message: "ما التناظر؟" }]] as const) {
-      const refused = await call(
-        app,
-        student.token,
-        method,
-        `/exams/${exam.examId}/ai-chat`,
-        payload,
-      );
-      expect(refused.statusCode).toBe(403);
-      expect(errorCode(refused)).toBe("AI_REQUIRES_SUBSCRIPTION");
-    }
-    expect((await call(app, null, "GET", `/exams/${exam.examId}/ai-chat`)).statusCode).toBe(401);
+    const url = `/exams/${exam.examId}/ai-chat`;
+    const first = await call(app, student.token, "POST", url, { message: "ما التناظر؟" });
+    expect(first.statusCode, first.payload).toBe(200);
+    expect(first.json()).toMatchObject({ freeRemaining: 1 });
+    const second = await call(app, student.token, "POST", url, { message: "والمرادفات؟" });
+    expect(second.json()).toMatchObject({ freeRemaining: 0 });
+
+    const refused = await call(app, student.token, "POST", url, { message: "سؤال ثالث" });
+    expect(refused.statusCode).toBe(403);
+    expect(errorCode(refused)).toBe("AI_FREE_LIMIT_REACHED");
+    // The trial is per account: another exam does not reset it.
+    const other = await liveExam(1);
+    const elsewhere = await call(app, student.token, "POST", `/exams/${other.examId}/ai-chat`, {
+      message: "مرحبا",
+    });
+    expect(errorCode(elsewhere)).toBe("AI_FREE_LIMIT_REACHED");
+    // What they asked stays readable.
+    expect(
+      (await call(app, student.token, "GET", url)).json<{ items: unknown[] }>().items,
+    ).toHaveLength(4);
+    expect((await call(app, null, "GET", url)).statusCode).toBe(401);
+
+    // Subscribing lifts the trial limit.
+    await subscribe(student.id, exam.examId);
+    const paid = await call(app, student.token, "POST", url, { message: "سؤال بعد الاشتراك" });
+    expect(paid.statusCode).toBe(200);
+    expect(paid.json()).toMatchObject({ freeRemaining: null });
+
+    await call(app, admin, "PUT", `/admin/settings/${TRIAL_KEY}`, {
+      expectedVersion: version + 1,
+      value: { chatMessages: 5 },
+    });
   });
 
   it("answers inside the rules, grounded on the library, and keeps the conversation", async () => {

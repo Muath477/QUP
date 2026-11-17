@@ -117,6 +117,22 @@ const chatRulesSchema = z.strictObject({
   rules: z.array(z.string().trim().min(1).max(MAX_CHAT_RULE_CHARS)).max(MAX_CHAT_RULES),
 });
 
+export const AI_FREE_TRIAL_KEY = "ai.freeTrial";
+
+export interface AiFreeTrialValue {
+  /** Study chat replies a student gets before subscribing, once per account. */
+  chatMessages: number;
+}
+
+const MAX_FREE_CHAT_MESSAGES = 100;
+
+/** A taste of the study chat before subscribing (OPEN_QUESTIONS.md #18). 0 turns it off. */
+export const DEFAULT_AI_FREE_TRIAL: AiFreeTrialValue = Object.freeze({ chatMessages: 5 });
+
+const freeTrialSchema = z.strictObject({
+  chatMessages: z.number().int().min(0).max(MAX_FREE_CHAT_MESSAGES),
+});
+
 export const SETTING_DEFINITIONS = {
   [PRELIMINARY_LEVELS_KEY]: {
     valueType: "JSON",
@@ -137,6 +153,13 @@ export const SETTING_DEFINITIONS = {
       "Extra rules the study chat follows on top of its fixed ones. They can only narrow what it does.",
     schema: chatRulesSchema,
     defaultValue: DEFAULT_STUDY_CHAT_RULES,
+  },
+  [AI_FREE_TRIAL_KEY]: {
+    valueType: "JSON",
+    description:
+      "Study chat replies a student gets free, once per account, before subscribing. 0 turns the free trial off.",
+    schema: freeTrialSchema,
+    defaultValue: DEFAULT_AI_FREE_TRIAL,
   },
 } as const;
 

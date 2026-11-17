@@ -59,11 +59,6 @@ export class StudentTutorService {
     return this.config.ai.studentExplanations && this.runner.providerName !== null;
   }
 
-  /** Whether the student's subscription covers the exam's AI features. */
-  subscribed(studentId: string, examId: string): Promise<boolean> {
-    return this.access.hasExamAccess(studentId, examId);
-  }
-
   async explainMistake(
     studentId: string,
     examId: string,

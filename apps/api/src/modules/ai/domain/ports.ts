@@ -38,6 +38,8 @@ export interface AiRunStore {
   }): Promise<unknown | null>;
   /** Runs of a task this person asked for since a time, whatever their end. */
   countByRequesterSince(task: string, requestedBy: string, since: Date): Promise<number>;
+  /** Successful runs of a task this person ever asked for (free trial use). */
+  countSucceededByRequester(task: string, requestedBy: string): Promise<number>;
 }
 
 export const AI_RUN_STORE = Symbol("AI_RUN_STORE");

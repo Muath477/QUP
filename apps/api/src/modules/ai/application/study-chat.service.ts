@@ -5,11 +5,12 @@ import { APP_CONFIG, type AppConfig } from "../../../config/app-config.js";
 import { EXAM_ACCESS, type ExamAccess } from "../../billing/billing.contract.js";
 import { CATALOG_LOOKUP, type CatalogLookup } from "../../catalog/catalog.contract.js";
 import {
+  AI_FREE_TRIAL_KEY,
   SETTINGS_READER,
   type SettingsReader,
   STUDY_CHAT_RULES_KEY,
 } from "../../settings/settings.contract.js";
-import { AiChatLimitReached, AiRequiresSubscription, AiStudyChatOff } from "../domain/ai.errors.js";
+import { AiChatLimitReached, AiFreeLimitReached, AiStudyChatOff } from "../domain/ai.errors.js";
 import {
   AI_RUN_STORE,
   type AiRunStore,
@@ -37,6 +38,15 @@ export interface ChatReplyView {
   kind: ChatReplyKind;
   /** Titles of the library entries the reply was grounded on. */
   sources: string[];
+  /** Free replies left after this one; null for a subscriber. */
+  freeRemaining: number | null;
+}
+
+/** What a student may do in the chat of one exam right now. */
+export interface ChatAllowance {
+  subscribed: boolean;
+  /** Free replies left before subscribing; null for a subscriber. */
+  freeRemaining: number | null;
 }
 
 /**
@@ -63,15 +73,35 @@ export class StudyChatService {
     return this.config.ai.studyChat && this.runner.providerName !== null;
   }
 
+  /**
+   * A subscriber has the full daily allowance. Anyone else gets a few free
+   * replies once per account (setting `ai.freeTrial`), then is asked to
+   * subscribe (OPEN_QUESTIONS.md #18).
+   */
+  async allowance(studentId: string, examId: string): Promise<ChatAllowance> {
+    if (await this.access.hasExamAccess(studentId, examId)) {
+      return { subscribed: true, freeRemaining: null };
+    }
+    const [trial, used] = await Promise.all([
+      this.settings.current(AI_FREE_TRIAL_KEY),
+      this.runs.countSucceededByRequester(studyChat.name, studentId),
+    ]);
+    return { subscribed: false, freeRemaining: Math.max(0, trial.value.chatMessages - used) };
+  }
+
+  /** The student's own conversation; open to anyone, as a trial leaves one behind. */
   async history(studentId: string, examId: string): Promise<ChatMessageView[]> {
-    await this.assertSubscribed(studentId, examId);
     return this.chats.history(studentId, examId, CHAT_HISTORY_SHOWN);
   }
 
   async send(studentId: string, examId: string, message: string): Promise<ChatReplyView> {
     if (!this.config.ai.studyChat) throw new AiStudyChatOff();
     this.runner.assertAvailable();
-    await this.assertSubscribed(studentId, examId);
+    const allowance = await this.allowance(studentId, examId);
+    if (allowance.freeRemaining === 0) {
+      const trial = await this.settings.current(AI_FREE_TRIAL_KEY);
+      throw new AiFreeLimitReached(trial.value.chatMessages);
+    }
 
     const today = await this.runs.countByRequesterSince(
       studyChat.name,
@@ -109,14 +139,11 @@ export class StudyChatService {
       messages,
       kind: output.kind,
       sources: output.kind === "ANSWERED" ? [...new Set(references.map((r) => r.title))] : [],
+      freeRemaining: allowance.freeRemaining === null ? null : allowance.freeRemaining - 1,
     };
   }
 
   async clear(studentId: string, examId: string): Promise<void> {
     await this.chats.clear(studentId, examId);
-  }
-
-  private async assertSubscribed(studentId: string, examId: string): Promise<void> {
-    if (!(await this.access.hasExamAccess(studentId, examId))) throw new AiRequiresSubscription();
   }
 }
