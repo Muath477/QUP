@@ -262,6 +262,22 @@
     width: 8rem;
     height: auto;
   }
+  /* The gold fold of the Q, layered exactly over the rest of the logo. */
+  :where(.brand-mark) {
+    position: relative;
+    display: block;
+  }
+  :where(.brand-fold) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    animation: fold-draw var(--motion-slow) var(--ease-out) 240ms backwards;
+    transition: translate var(--motion-base) var(--ease-out);
+  }
+  /* Forward along the fold's own diagonal: the Q's tail points onward. */
+  :where(.brand:hover .brand-fold, .brand:focus-visible .brand-fold) {
+    translate: 0.7% 1.2%;
+  }
   :where(.brand-tagline) {
     color: var(--color-text-muted);
     font-size: 0.625rem;
@@ -1895,6 +1911,9 @@
     --motion-slow: 0ms;
     --stagger-step: 0ms;
   }
+  .brand-fold {
+    animation: none;
+  }
 }
 
 /* Admin panel (A1). Same tokens as the workspace; no new visual language. */
@@ -3045,6 +3064,13 @@
   from {
     opacity: 0;
     transform: translateY(10px);
+  }
+}
+/* The fold is drawn from the Q outwards: revealed left to right, settling into place. */
+@keyframes fold-draw {
+  from {
+    clip-path: inset(0 80% 0 20%);
+    translate: -0.7% -1.2%;
   }
 }
 @keyframes fade {
