@@ -33,6 +33,8 @@ export const AuditAction = {
   SettingUpdated: "settings.update",
   BlueprintActivated: "blueprint.activate",
   BlueprintArchived: "blueprint.archive",
+  KnowledgeItemAdded: "ai.knowledge.add",
+  KnowledgeItemArchived: "ai.knowledge.archive",
 } as const;
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];

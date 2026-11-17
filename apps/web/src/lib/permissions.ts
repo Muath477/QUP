@@ -102,6 +102,12 @@ const ADMIN_NAV: readonly AdminNavItem[] = [
     icon: "spark",
     permission: ADMIN_PERMISSIONS.aiManage,
   },
+  {
+    href: "/admin/ai/knowledge",
+    title: "مكتبة النماذج",
+    icon: "library",
+    permission: ADMIN_PERMISSIONS.aiManage,
+  },
 ];
 
 export function adminNavItems(
