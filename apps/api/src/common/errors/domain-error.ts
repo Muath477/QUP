@@ -22,6 +22,8 @@ export type DomainErrorKind =
   | "NOT_FOUND"
   | "CONFLICT"
   | "RULE_VIOLATION"
+  /** The caller asked too often for this one thing; details may say when to retry. */
+  | "RATE_LIMITED"
   /** A dependency the request needs (e.g. the payment provider) cannot serve it right now. */
   | "UNAVAILABLE";
 

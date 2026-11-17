@@ -57,6 +57,9 @@ export default function LoginPage() {
           autoComplete="current-password"
           ltr
         />
+        <p className="auth-form-aside">
+          <Link href="/forgot-password">نسيت كلمة المرور؟</Link>
+        </p>
         <button type="submit" className="btn btn--block" disabled={signIn.isPending}>
           {signIn.isPending ? "جارٍ الدخول…" : "دخول"}
         </button>

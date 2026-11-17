@@ -4,6 +4,7 @@ import { InjectPinoLogger, PinoLogger } from "nestjs-pino";
 import type { ActorContext } from "../../../common/actor.js";
 import { APP_CONFIG, type AppConfig } from "../../../config/app-config.js";
 import { CATALOG_LOOKUP, type CatalogLookup } from "../../catalog/catalog.contract.js";
+import type { PaymentReceipt, PaymentReceipts } from "../billing.contract.js";
 import {
   AlreadyEntitled,
   CheckoutSuperseded,
@@ -26,6 +27,7 @@ import {
   type ProviderEvent,
   ProviderRequestFailed,
 } from "../domain/ports.js";
+import { refundableUntil } from "../domain/refund-policy.js";
 
 const MS_PER_MINUTE = 60_000;
 /** A checkout about to expire is not handed out again: the payer needs time to pay. */
@@ -64,7 +66,7 @@ export type WebhookOutcome =
  * provider's own answer about the payment moves it to SUCCEEDED.
  */
 @Injectable()
-export class PaymentsService {
+export class PaymentsService implements PaymentReceipts {
   constructor(
     @Inject(BILLING_STORE) private readonly store: BillingStore,
     @Inject(CATALOG_LOOKUP) private readonly catalog: CatalogLookup,
@@ -124,6 +126,24 @@ export class PaymentsService {
     const payment = await this.store.findPayment(paymentId);
     if (payment?.studentId !== studentId) throw new PaymentNotFound();
     return payment;
+  }
+
+  /** What a payment bought and became of, for the receipt email (billing.contract.ts). */
+  async receiptFor(paymentId: string): Promise<PaymentReceipt | null> {
+    const payment = await this.store.findPayment(paymentId);
+    if (!payment) return null;
+    // Payments older than `terms` are named by their plan, which could not change before then.
+    const planName =
+      payment.terms?.planName ?? (await this.store.findPlan(payment.planId))?.name ?? "";
+    return {
+      studentId: payment.studentId,
+      planName,
+      amountMinor: payment.amountMinor,
+      currency: payment.currency,
+      status: payment.status,
+      paidAt: payment.paidAt,
+      refundableUntil: refundableUntil(payment.paidAt),
+    };
   }
 
   /** The student's own payments, newest first. A student makes a handful; no paging. */

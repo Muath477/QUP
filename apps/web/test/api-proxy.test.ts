@@ -19,6 +19,7 @@ describe("which paths are proxied", () => {
 
   it("never exposes the payment webhooks to browsers", () => {
     expect(upstreamPath(["payments", "webhooks", "stream"])).toBeNull();
+    expect(upstreamPath(["email", "webhooks", "sndr"])).toBeNull();
     expect(upstreamPath(["payments", "0b9f3c0e"])).not.toBeNull();
   });
 

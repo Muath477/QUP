@@ -131,6 +131,30 @@ refused because of the mismatch.
   payments keep their amount and terms. The change is in the audit log (`plan.update`).
 - **Never** mark a payment as paid in the database by hand.
 
+## 6b. Email and one-time codes
+
+- **"The code never came":** find the delivery:
+  `SELECT kind, status, attempts, last_error, created_at FROM email_deliveries WHERE to_address = '<address>' ORDER BY created_at DESC;`
+  - no row: the request failed earlier — email is off (`EMAIL_NOT_CONFIGURED`), the cooldown applied, or
+    the address has no active account (a reset never says so).
+  - `QUEUED` with `last_error`: the provider could not take it (`send 503`, `send no-response`); check
+    SNDR's status, `SNDR_API_KEY`, and that the sender's domain is still verified.
+  - `FAILED`: rejected for good — `last_error` carries SNDR's code (`domain_not_verified`, `suppressed`,
+    `unauthenticated`). Fix the cause; the person simply asks for a new code.
+  - `SENT` and never `DELIVERED`: SNDR has not reported yet, or the webhook is not reaching the API
+    (check SNDR → Webhooks for failed deliveries and `SNDR_WEBHOOK_SECRET`).
+  - `BOUNCED`: the address does not exist. Tell the student to use another one.
+- **Receipts and notices missing:** the worker is not running, or events are stuck. `SELECT status, count(*)
+  FROM outbox_events WHERE event_type = 'notification.email.requested' GROUP BY 1;` — `PENDING` means waiting
+  for the worker or for a retry; `FAILED` means the provider was down for ~20 minutes: after fixing it,
+  `UPDATE outbox_events SET status = 'PENDING', attempts = 0, available_at = now() WHERE status = 'FAILED' AND
+  event_type = 'notification.email.requested';` — safe, every email is sent once (idempotency key).
+- **A code is locked out:** five wrong guesses burn it; the student asks for a new one (one a minute, five an
+  hour). There is nothing to unlock and no way to read a code: only its hash is stored.
+- **Rotating `OTP_SECRET`:** codes in flight stop working (ten minutes at most); nothing else changes.
+- **Rotating the SNDR webhook secret:** stage the replacement in SNDR (it signs with both), update
+  `SNDR_WEBHOOK_SECRET`, then promote — no deliveries are lost.
+
 ## 7. Turning AI off
 
 Set `AI_PROVIDER=disabled` on qup-backend and restart it. Then:

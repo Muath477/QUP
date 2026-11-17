@@ -16,6 +16,8 @@ interface TextFieldProps {
   ltr?: boolean;
   /** Keeps ids unique when several forms with the same field names share a page. */
   idPrefix?: string;
+  /** Extra class for the input itself (e.g. the one-time-code style). */
+  inputClassName?: string;
 }
 
 export function TextField({
@@ -28,6 +30,7 @@ export function TextField({
   inputMode,
   ltr = false,
   idPrefix = "field",
+  inputClassName,
 }: TextFieldProps) {
   const [visible, setVisible] = useState(false);
   const id = `${idPrefix}-${registration.name}`;
@@ -43,7 +46,7 @@ export function TextField({
       <div className={type === "password" ? "password-field" : undefined}>
         <input
           id={id}
-          className="field__input"
+          className={inputClassName ? `field__input ${inputClassName}` : "field__input"}
           type={type === "password" && visible ? "text" : type}
           autoComplete={autoComplete}
           inputMode={inputMode}

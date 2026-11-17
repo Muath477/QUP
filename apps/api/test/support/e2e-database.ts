@@ -58,6 +58,11 @@ export async function deleteE2eUsers(): Promise<void> {
       SELECT id::text FROM import_batches WHERE uploaded_by IN ${e2eSql(ids)})`;
   await e2eSql`DELETE FROM import_batches WHERE uploaded_by IN ${e2eSql(ids)}`;
   await e2eSql`DELETE FROM learning_events WHERE student_id IN ${e2eSql(ids)}`;
+  // Mail owed to, and logged for, test accounts (the user FK only nulls the log's link).
+  await e2eSql`DELETE FROM email_deliveries WHERE to_address LIKE ${`%@${E2E_EMAIL_DOMAIN}`}`;
+  await e2eSql`
+    DELETE FROM outbox_events
+    WHERE event_type = 'notification.email.requested' AND payload->>'userId' IN ${e2eSql(ids)}`;
   await e2eSql`DELETE FROM ai_runs WHERE requested_by IN ${e2eSql(ids)}`;
   await e2eSql`DELETE FROM question_reports WHERE reported_by IN ${e2eSql(ids)}`;
   await e2eSql.begin(async (tx) => {
@@ -162,6 +167,9 @@ export async function purgeE2eCatalog(): Promise<void> {
     ).map((r) => r.id);
     if (billingIds.length > 0) {
       await tx`DELETE FROM audit_logs WHERE resource_id IN ${tx(billingIds)}`;
+      // Receipts and refund notices owed for these payments.
+      await tx`
+        DELETE FROM outbox_events WHERE aggregate_type = 'payment' AND aggregate_id IN ${tx(billingIds)}`;
     }
     await tx`DELETE FROM entitlements WHERE exam_id IN ${tx(examIds)}`;
     if (planIds.length > 0) {

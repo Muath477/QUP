@@ -55,9 +55,10 @@ Recommended baseline:
 - Argon2id passwords.
 - rate limiting.
 
-Sign-up: email, phone, or both; sign-in with either. No OTP/ownership verification
-(OPEN_QUESTIONS.md #6, decided 2026-09-22). Consequence tracked as #6a: no safe
-self-service password recovery yet.
+Sign-up: email, phone, or both; sign-in with either. Sign-up does not wait for ownership proof
+(OPEN_QUESTIONS.md #6, decided 2026-09-22): the account is active at once. Ownership of an email
+address is proved afterwards, with a mailed one-time code (#6a, #6c) — to verify the address and to
+reset a forgotten password. A phone-only account has no recovery path yet (SNDR is email only).
 
 Implemented (apps/api):
 - session token: 256 random bits; only its SHA-256 digest is stored.
@@ -66,6 +67,30 @@ Implemented (apps/api):
 - login: identical response and comparable timing for unknown account vs wrong password.
 - suspending a user revokes access on the next request, not at session expiry.
 - rate limit: per-IP budget on login/register (in-memory; move to Redis before running multiple instances).
+
+One-time codes (email verification, password reset — apps/api `otp-policy.ts`, `drizzle-otp-store.ts`):
+- 6 digits from `crypto.randomInt`; valid 10 minutes; single use; at most one live code per user and purpose
+  (a new one replaces the old).
+- Only an HMAC-SHA256 of the code is stored, keyed by `OTP_SECRET` and bound to purpose + address: a
+  database leak cannot be replayed, and a verification code cannot reset a password.
+- Five wrong guesses burn the code (counted under a row lock, committed even when the guess fails);
+  requests are limited to one a minute and five an hour per user and purpose, plus the per-IP
+  credential budget on every route.
+- Asking for a reset never reveals whether an address has an account: the answer is identical for a
+  registered, unknown, suspended, throttled or unmailable address. Confirming with anything that is not a
+  live, correct code answers one generic error.
+- A successful reset sets the password, signs the account out of every session, verifies the address
+  (the mailbox was proved), audits it (`user.password.reset`) and queues a "your password changed" email.
+- A code is mailed with a provider idempotency key (`otp:<code id>`): a retry after a lost answer cannot
+  send it twice; a code that could not be mailed is discarded so it does not burn the cooldown.
+- Codes never appear in subjects, logs, the audit log or the outbox.
+
+Email (apps/api `modules/email`): SNDR credentials come from the environment only, are never logged or
+echoed in errors, are sent to the configured base URL only (redirects refused, https required in
+production). Delivery events (`/api/v1/email/webhooks/sndr`) are authenticated by HMAC-SHA256 over the exact
+bytes (`X-Sndr-Signature`, 5-minute tolerance, both signatures accepted during key rotation) before the
+body is parsed; a final delivery status is never overwritten, so replays and stale events change nothing.
+Every variable placed in an email is HTML-escaped.
 
 ## Authorization
 

@@ -10,9 +10,10 @@ import {
 } from "../src/lib/permissions";
 
 const account = (permissions: string[]): Me => ({
-  user: { id: "u1", email: "u@qup.test", phone: null, displayName: null },
+  user: { id: "u1", email: "u@qup.test", emailVerified: false, phone: null, displayName: null },
   roles: [],
   permissions,
+  features: { emailCodes: true },
 });
 
 const admin = account([

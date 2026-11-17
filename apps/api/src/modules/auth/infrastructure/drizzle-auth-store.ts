@@ -7,6 +7,7 @@ import { AuditAction, writeAudit } from "../../../infrastructure/audit/audit-log
 import { DATABASE } from "../../../infrastructure/database/database.module.js";
 import type { DbExecutor } from "../../../infrastructure/database/executor.js";
 import { PgErrorCode, pgErrorInfo } from "../../../infrastructure/database/postgres-errors.js";
+import { OutboxEventType, writeOutbox } from "../../../infrastructure/outbox/outbox.js";
 import { IdentifierTaken } from "../domain/auth.errors.js";
 import type {
   ActiveSession,
@@ -30,6 +31,7 @@ const profileColumns = {
   phone: users.phone,
   displayName: users.displayName,
   status: users.status,
+  emailVerifiedAt: users.emailVerifiedAt,
   createdAt: users.createdAt,
 };
 
@@ -170,7 +172,17 @@ export class DrizzleAuthStore implements AuthStore {
   }
 
   async updatePasswordHash(userId: string, passwordHash: string, at: Date): Promise<void> {
-    await this.db.update(users).set({ passwordHash, updatedAt: at }).where(eq(users.id, userId));
+    // The notice that the password changed is queued with the change itself: it exists
+    // exactly when the change committed, and goes out whenever the worker next runs.
+    await this.db.transaction(async (tx) => {
+      await tx.update(users).set({ passwordHash, updatedAt: at }).where(eq(users.id, userId));
+      await writeOutbox(tx, {
+        type: OutboxEventType.EmailRequested,
+        aggregateType: "user",
+        aggregateId: userId,
+        payload: { kind: "PASSWORD_CHANGED", userId },
+      });
+    });
   }
 
   async loadAccess(userId: string): Promise<UserAccess> {

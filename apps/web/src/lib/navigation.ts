@@ -1,7 +1,13 @@
 export function isWorkspacePath(path: string): boolean {
-  return ["/dashboard", "/exams", "/assessments", "/subscriptions", "/account", "/payment"].some(
-    (root) => path === root || path.startsWith(`${root}/`),
-  );
+  return [
+    "/dashboard",
+    "/exams",
+    "/assessments",
+    "/subscriptions",
+    "/account",
+    "/payment",
+    "/verify-email",
+  ].some((root) => path === root || path.startsWith(`${root}/`));
 }
 
 /** The admin panel has its own shell; it is not part of the student workspace. */

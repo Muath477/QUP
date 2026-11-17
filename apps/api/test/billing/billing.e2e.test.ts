@@ -682,6 +682,37 @@ describe("payment webhook", () => {
     expect(await auditActions(open.payment.id)).toEqual(["payment.settle"]);
   });
 
+  it("queues one receipt and one refund notice, carrying ids only, however often events repeat", async () => {
+    const open = await openCheckout(studentA);
+    const { providerPaymentId } = await pay(open);
+    await pay({ ...open }, PRICE); // a second, distinct event for the same checkout
+    const owed = () =>
+      e2eSql<{ payload: Record<string, unknown> }[]>`
+        SELECT payload FROM outbox_events
+        WHERE aggregate_type = 'payment' AND aggregate_id = ${open.payment.id} ORDER BY created_at`;
+    expect((await owed()).map((e) => e.payload)).toEqual([
+      { kind: "PAYMENT_RECEIPT", userId: studentAId, paymentId: open.payment.id },
+    ]);
+
+    stream.setPayment(providerPaymentId, {
+      current_status: "REFUNDED",
+      amount_in_smallest_unit: PRICE,
+    });
+    const refund = {
+      eventType: "PAYMENT_REFUNDED",
+      paymentId: providerPaymentId,
+      linkId: open.linkId,
+    };
+    await deliver(refund);
+    await deliver(refund);
+    expect((await owed()).map((e) => e.payload.kind)).toEqual([
+      "PAYMENT_RECEIPT",
+      "PAYMENT_REFUNDED",
+    ]);
+    // Nothing in them names or addresses the student.
+    expect(JSON.stringify((await owed()).map((e) => e.payload))).not.toMatch(/@|\+966/);
+  });
+
   it("grants access once when the first deliveries race each other", async () => {
     const open = await openCheckout(studentA);
     const providerPaymentId = randomUUID();

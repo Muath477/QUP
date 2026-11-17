@@ -408,6 +408,30 @@ purchase are how a student pays twice. Ledger index on (created_at, id) (0018).
 Replay guard: unique (source, source_reference, exam_id) where source_reference is set (0018,
 was (source, source_reference)): one bundle payment grants exactly one entitlement per exam.
 
+## Email and one-time codes (0019)
+
+### one_time_codes
+- id, user_id (cascade)
+- purpose EMAIL_VERIFICATION / PASSWORD_RESET (CHECK)
+- email: the address the code was mailed to
+- code_hash: HMAC-SHA256 hex — never the code
+- expires_at (10 minutes), failed_attempts, consumed_at (spent, burned or replaced)
+- created_at
+
+One live code per user and purpose (partial unique index where consumed_at IS NULL). Cooldown and
+hourly limit read recent rows by (user_id, purpose, created_at).
+
+### email_deliveries
+- id, user_id (set null)
+- kind (OTP_EMAIL_VERIFICATION, OTP_PASSWORD_RESET, PAYMENT_RECEIPT, PAYMENT_REFUNDED, PASSWORD_CHANGED)
+- to_address, provider ("sndr")
+- status QUEUED → SENT → DELIVERED / BOUNCED, or FAILED (CHECK; moves forward only)
+- provider_message_id, idempotency_key (unique; also the provider's Idempotency-Key)
+- attempts, last_error (provider status and code only — never the message)
+- created_at, sent_at, updated_at
+
+No subject, body or code is kept: the table answers "did the email go out", not "what did it say".
+
 ## Operations
 
 ### audit_logs

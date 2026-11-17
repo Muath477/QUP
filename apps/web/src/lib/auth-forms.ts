@@ -100,3 +100,51 @@ export const passwordForm = z
     path: ["newPassword"],
   });
 export type PasswordForm = z.infer<typeof passwordForm>;
+
+/* ---------------------------- one-time codes ---------------------------- */
+
+/** Mirrors the API's code length (otp-policy.ts); the API stays the only judge. */
+const CODE_LENGTH = 6;
+
+/**
+ * What was typed or pasted, as the digits of a code: Arabic-Indic digits
+ * become Latin, spaces and dashes go, and nothing past the code's length is kept.
+ */
+export function normalizeCodeInput(raw: string): string {
+  return raw
+    .replace(ARABIC_DIGITS, (digit) =>
+      String((digit.charCodeAt(0) - (digit >= "۰" ? 0x06f0 : 0x0660)) % 10),
+    )
+    .replace(/\D/g, "")
+    .slice(0, CODE_LENGTH);
+}
+
+const code = z
+  .string()
+  .transform(normalizeCodeInput)
+  .refine((value) => value.length === CODE_LENGTH, `الرمز ${CODE_LENGTH} أرقام`);
+
+export const codeForm = z.object({ code });
+export type CodeFormInput = z.input<typeof codeForm>;
+export type CodeForm = z.output<typeof codeForm>;
+
+export const forgotForm = z.object({
+  email: z.string().trim().toLowerCase().pipe(z.email("بريد إلكتروني غير صحيح")),
+});
+export type ForgotForm = z.infer<typeof forgotForm>;
+
+export const resetForm = z
+  .object({
+    code,
+    newPassword: z
+      .string()
+      .min(PASSWORD_MIN_LENGTH, `كلمة المرور ${PASSWORD_MIN_LENGTH} حرفًا على الأقل`)
+      .max(PASSWORD_MAX_LENGTH, "كلمة المرور طويلة جدًا"),
+    confirmPassword: z.string(),
+  })
+  .refine((form) => form.newPassword === form.confirmPassword, {
+    message: "كلمتا المرور غير متطابقتين",
+    path: ["confirmPassword"],
+  });
+export type ResetFormInput = z.input<typeof resetForm>;
+export type ResetForm = z.output<typeof resetForm>;

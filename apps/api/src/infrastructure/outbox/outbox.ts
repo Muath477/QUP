@@ -16,6 +16,8 @@ export const OutboxEventType = {
   SessionCompleted: "assessment.session.completed",
   ReassessmentRecorded: "mastery.reassessment.recorded",
   ImportDraftsCreated: "import.drafts.created",
+  /** An email the platform owes someone; the notifications handler builds and sends it. */
+  EmailRequested: "notification.email.requested",
 } as const;
 
 export type OutboxEventType = (typeof OutboxEventType)[keyof typeof OutboxEventType];

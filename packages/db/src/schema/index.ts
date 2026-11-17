@@ -15,6 +15,7 @@ export * from "./feedback.js";
 export * from "./identity.js";
 export * from "./imports.js";
 export * from "./mastery.js";
+export * from "./notifications.js";
 export * from "./operations.js";
 export * from "./questions.js";
 export * from "./taxonomy.js";

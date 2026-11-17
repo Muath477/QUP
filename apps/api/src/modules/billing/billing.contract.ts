@@ -10,3 +10,22 @@ export interface ExamAccess {
 }
 
 export const EXAM_ACCESS = Symbol("EXAM_ACCESS");
+
+/** What a payment bought and what became of it — enough to write the student a receipt. */
+export interface PaymentReceipt {
+  studentId: string;
+  planName: string;
+  amountMinor: number;
+  currency: string;
+  status: "PENDING" | "SUCCEEDED" | "FAILED" | "REFUNDED" | "CANCELLED";
+  paidAt: Date | null;
+  /** Until when a full refund may be asked for (refund-policy.ts); null when nothing was paid. */
+  refundableUntil: Date | null;
+}
+
+export interface PaymentReceipts {
+  /** Null when no such payment exists. */
+  receiptFor(paymentId: string): Promise<PaymentReceipt | null>;
+}
+
+export const PAYMENT_RECEIPTS = Symbol("PAYMENT_RECEIPTS");

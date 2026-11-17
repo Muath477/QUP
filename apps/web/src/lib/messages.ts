@@ -33,6 +33,13 @@ const BY_CODE: Record<string, string> = {
   PAYMENTS_NOT_CONFIGURED: "الدفع الإلكتروني غير متاح حاليًا. حاول لاحقًا.",
   PAYMENT_PROVIDER_UNAVAILABLE: "تعذّر الاتصال بخدمة الدفع. لم يُخصم منك شيء؛ حاول مرة أخرى.",
   SERVICE_UNAVAILABLE: "الخدمة غير متاحة مؤقتًا. حاول بعد قليل.",
+  // One-time codes (email verification, password reset).
+  INVALID_OR_EXPIRED_CODE: "الرمز غير صحيح أو انتهت صلاحيته. اطلب رمزًا جديدًا وجرّب مرة أخرى.",
+  CODE_REQUESTED_TOO_OFTEN: "أُرسل إليك رمز قبل قليل. انتظر قليلًا ثم اطلب رمزًا جديدًا.",
+  EMAIL_REQUIRED: "حسابك مسجّل برقم الجوال فقط، ولا يوجد بريد لإرسال الرمز إليه.",
+  EMAIL_ALREADY_VERIFIED: "بريدك الإلكتروني موثّق من قبل.",
+  EMAIL_NOT_CONFIGURED: "إرسال الرموز غير متاح حاليًا. حاول لاحقًا أو تواصل مع الدعم.",
+  EMAIL_UNAVAILABLE: "تعذّر إرسال الرمز الآن. حاول مرة أخرى بعد قليل.",
   AI_UNAVAILABLE: "الشرح المخصص غير متاح الآن. الشرح المعتمد أعلاه يكفيك، وجرّب لاحقًا.",
   AI_TIMEOUT: "استغرق التحليل وقتًا أطول من المعتاد. جرّب مرة أخرى.",
   AI_OUTPUT_INVALID: "لم نتمكن من تجهيز شرح موثوق الآن. جرّب مرة أخرى لاحقًا.",

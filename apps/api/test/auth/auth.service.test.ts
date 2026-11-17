@@ -40,6 +40,7 @@ function fakeStore(overrides: Partial<AuthStore> = {}): AuthStore {
       phone: null,
       displayName: null,
       status: "ACTIVE",
+      emailVerifiedAt: null,
       createdAt: NOW,
     }),
     findCredentialsById: async () => null,

@@ -36,6 +36,11 @@ GET  /auth/me
 PATCH /auth/me
 POST /auth/password
 POST /auth/sessions/revoke
+POST /auth/email/verification     mail a code to the signed-in user's address
+POST /auth/email/verify           { code } — verify the address
+POST /auth/password/forgot        PUBLIC { email } — mail a reset code
+POST /auth/password/reset         PUBLIC { email, code, newPassword }
+POST /email/webhooks/sndr         provider only; authenticated by signature, not by session
 ```
 
 - `register`: `{ email?, phone?, password, displayName? }` — at least one of email/phone;
@@ -43,16 +48,41 @@ POST /auth/sessions/revoke
 - `login`: `{ identifier, password }` — identifier is the email or the phone. `200` + session cookie.
   Unknown account and wrong password both return `401 INVALID_CREDENTIALS`.
 - `logout`: `204`, clears the cookie. `sessions/revoke`: signs out every *other* session, `204`.
-- `me`: `{ user, roles, permissions }`.
+- `me`: `{ user, roles, permissions, features }`. `user.emailVerified` is true once the address was
+  proved with a code. `features.emailCodes` says whether this deployment can mail codes at all.
 - `PATCH me`: `{ displayName }` — trimmed, at most 80 characters; blank clears it. `200 { user }`.
 - `password`: `{ currentPassword, newPassword }` — new password follows the registration policy.
   A wrong current password returns `422 CURRENT_PASSWORD_INCORRECT`. `204`; every other session is
   signed out, the current one stays. Rate-limited like login.
-- No OTP/verification (OPEN_QUESTIONS.md #6).
+- Sign-up is not gated on verification (OPEN_QUESTIONS.md #6); codes verify an address and recover a password.
+
+One-time codes (email only — OPEN_QUESTIONS.md #6a, #6c):
+- `email/verification` → `202 { validForMinutes, resendAfterSeconds }`. The account needs an email
+  (`422 EMAIL_REQUIRED`) that is not verified yet (`409 EMAIL_ALREADY_VERIFIED`).
+- `email/verify` → `204`. `code` may carry spaces or Arabic-Indic digits.
+- `password/forgot` → `202 { validForMinutes, resendAfterSeconds }` **whatever the address is**: registered,
+  unknown, suspended, phone-only, throttled, or one the mail could not be sent to. Nothing is mailed
+  unless the account exists, is active and is not throttled.
+- `password/reset` → `204`. Sets the password, **signs the account out everywhere**, verifies the
+  address, queues a "password changed" email. Every failure is `400 INVALID_OR_EXPIRED_CODE`.
+- A code: 6 digits, valid 10 minutes, single use; five wrong guesses burn it; one request per minute
+  and five per hour per user and purpose (`429 CODE_REQUESTED_TOO_OFTEN`, `details.retryAfterSeconds`);
+  a newer code replaces the older. All four routes also share the per-IP credential budget.
+- `503 EMAIL_NOT_CONFIGURED` (no SNDR credentials), `503 EMAIL_UNAVAILABLE` (the provider could not take it
+  after two tries; the unsent code is discarded, so asking again is allowed at once).
+- `email/webhooks/sndr`: `email.delivered` / `email.bounced` / `email.failed` update `email_deliveries`.
+  `401` bad or stale signature; `404 EMAIL_NOT_FOUND` asks SNDR to retry (our record of the send may not be
+  written yet; events older than 10 minutes for an unknown message are dropped with `200`);
+  `503` when no webhook secret is set. Excluded from the OpenAPI document and from the web proxy.
+
+Emails the platform sends: verification and reset codes (synchronous, retried twice); a payment
+receipt, a refund notice and a password-changed notice (queued in the outbox with the change itself,
+sent by the worker with backoff — apps/api `notifications`).
 
 Errors: `VALIDATION_FAILED` (400, with `details: [{ path, message }]`), `INVALID_CREDENTIALS` (401),
 `UNAUTHENTICATED` (401), `ACCOUNT_DISABLED` (403), `FORBIDDEN` (403), `IDENTIFIER_TAKEN` (409),
-`RATE_LIMITED` (429).
+`RATE_LIMITED` (429), `INVALID_OR_EXPIRED_CODE` (400), `CODE_REQUESTED_TOO_OFTEN` (429),
+`EMAIL_REQUIRED` (422), `EMAIL_ALREADY_VERIFIED` (409), `EMAIL_NOT_CONFIGURED` / `EMAIL_UNAVAILABLE` (503).
 
 ## Exams
 

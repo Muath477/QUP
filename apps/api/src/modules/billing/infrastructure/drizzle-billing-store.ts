@@ -7,6 +7,7 @@ import { AuditAction, writeAudit } from "../../../infrastructure/audit/audit-log
 import { DATABASE } from "../../../infrastructure/database/database.module.js";
 import type { DbExecutor, DbTransaction } from "../../../infrastructure/database/executor.js";
 import { PgErrorCode, pgErrorInfo } from "../../../infrastructure/database/postgres-errors.js";
+import { OutboxEventType, writeOutbox } from "../../../infrastructure/outbox/outbox.js";
 import { PaymentNotFound, PlanCodeTaken } from "../domain/billing.errors.js";
 import { nextEntitlementPeriod } from "../domain/entitlement-period.js";
 import type { PlanStatus } from "../domain/plan-lifecycle.js";
@@ -484,6 +485,13 @@ export class DrizzleBillingStore implements BillingStore {
           entitlementIds: granted.map((e) => e.id).join(","),
         },
       });
+      // The receipt is owed from the moment the payment committed: queued with it, sent by the worker.
+      await writeOutbox(tx, {
+        type: OutboxEventType.EmailRequested,
+        aggregateType: "payment",
+        aggregateId: payment.id,
+        payload: { kind: "PAYMENT_RECEIPT", userId: payment.studentId, paymentId: payment.id },
+      });
       return "SETTLED";
     });
   }
@@ -521,6 +529,12 @@ export class DrizzleBillingStore implements BillingStore {
           providerPaymentId: confirmation.providerPaymentId,
           revokedEntitlementIds: revoked.map((e) => e.id).join(","),
         },
+      });
+      await writeOutbox(tx, {
+        type: OutboxEventType.EmailRequested,
+        aggregateType: "payment",
+        aggregateId: payment.id,
+        payload: { kind: "PAYMENT_REFUNDED", userId: payment.studentId, paymentId: payment.id },
       });
       return "REFUNDED";
     });

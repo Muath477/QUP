@@ -7,7 +7,7 @@ import { BillingLedgerService } from "./application/billing-ledger.service.js";
 import { EntitlementsService } from "./application/entitlements.service.js";
 import { PaymentsService } from "./application/payments.service.js";
 import { PlansService } from "./application/plans.service.js";
-import { EXAM_ACCESS } from "./billing.contract.js";
+import { EXAM_ACCESS, PAYMENT_RECEIPTS } from "./billing.contract.js";
 import { BILLING_STORE, PAYMENT_PROVIDER, type PaymentProvider } from "./domain/ports.js";
 import { DrizzleBillingStore } from "./infrastructure/drizzle-billing-store.js";
 import { StreamPaymentProvider } from "./infrastructure/stream/stream-payment-provider.js";
@@ -36,6 +36,7 @@ import { PaymentWebhooksController } from "./presentation/payment-webhooks.contr
     PaymentsService,
     { provide: BILLING_STORE, useClass: DrizzleBillingStore },
     { provide: EXAM_ACCESS, useExisting: EntitlementsService },
+    { provide: PAYMENT_RECEIPTS, useExisting: PaymentsService },
     {
       provide: PAYMENT_PROVIDER,
       inject: [APP_CONFIG],
@@ -50,6 +51,6 @@ import { PaymentWebhooksController } from "./presentation/payment-webhooks.contr
     },
   ],
   // Other modules depend on the access contract, not on billing services.
-  exports: [EXAM_ACCESS],
+  exports: [EXAM_ACCESS, PAYMENT_RECEIPTS],
 })
 export class BillingModule {}

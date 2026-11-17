@@ -12,6 +12,8 @@ import {
 } from "../infrastructure/outbox/outbox-relay.js";
 import { AnalyticsModule } from "../modules/analytics/analytics.module.js";
 import { LearningEventProjector } from "../modules/analytics/application/learning-event-projector.js";
+import { EmailNotificationHandler } from "../modules/notifications/application/email-notification.handler.js";
+import { NotificationsModule } from "../modules/notifications/notifications.module.js";
 
 /**
  * The background worker's composition root (ARCHITECTURE.md "Background
@@ -30,13 +32,17 @@ export class WorkerModule {
         LoggingModule.forRoot(config, options.logDestination),
         DatabaseModule,
         AnalyticsModule,
+        NotificationsModule,
       ],
       providers: [
         OutboxRelay,
         {
           provide: OUTBOX_HANDLERS,
-          inject: [LearningEventProjector],
-          useFactory: (projector: LearningEventProjector): OutboxHandler[] => [projector],
+          inject: [LearningEventProjector, EmailNotificationHandler],
+          useFactory: (
+            projector: LearningEventProjector,
+            notifications: EmailNotificationHandler,
+          ): OutboxHandler[] => [projector, notifications],
         },
       ],
     };

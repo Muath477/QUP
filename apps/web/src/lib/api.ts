@@ -68,6 +68,8 @@ export const isApiError = (error: unknown, code?: string): error is ApiError =>
 export interface User {
   id: string;
   email: string | null;
+  /** True once the person proved they can read mail sent to `email` (one-time code). */
+  emailVerified: boolean;
   phone: string | null;
   displayName: string | null;
 }
@@ -80,6 +82,8 @@ export interface Me {
   user: User;
   roles: string[];
   permissions: string[];
+  /** What this deployment can do; hides what would only fail (e.g. codes with no email provider). */
+  features: { emailCodes: boolean };
 }
 
 export interface Exam {
@@ -282,6 +286,26 @@ export const register = (body: {
 }) => api<{ user: User }>("/auth/register", { method: "POST", body });
 
 export const logout = () => api<void>("/auth/logout", { method: "POST" });
+
+/** What the API says about a code it just mailed. */
+export interface CodeRequested {
+  validForMinutes: number;
+  /** The earliest a new code may be asked for. */
+  resendAfterSeconds: number;
+}
+
+export const requestEmailVerification = () =>
+  api<CodeRequested>("/auth/email/verification", { method: "POST" });
+
+export const confirmEmail = (code: string) =>
+  api<void>("/auth/email/verify", { method: "POST", body: { code } });
+
+/** Answers the same whether or not the address has an account. */
+export const forgotPassword = (email: string) =>
+  api<CodeRequested>("/auth/password/forgot", { method: "POST", body: { email } });
+
+export const resetPassword = (body: { email: string; code: string; newPassword: string }) =>
+  api<void>("/auth/password/reset", { method: "POST", body });
 
 export const listExams = () => api<{ items: Exam[] }>("/exams");
 

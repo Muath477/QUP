@@ -62,6 +62,9 @@ const MAX_PROXY_HOPS = 5;
 /** 256 bits as hex; anything shorter is guessable enough to forge a client address. */
 const MIN_PROXY_SECRET_LENGTH = 32;
 
+/** 256 bits as hex; a shorter key weakens the code hashes. */
+const MIN_OTP_SECRET_LENGTH = 32;
+
 /** Empty strings in a .env file mean "not set". */
 const optionalSecret = z
   .string()
@@ -144,6 +147,25 @@ const envSchema = z.object({
   /** How long a checkout link accepts payment. */
   CHECKOUT_TTL_MINUTES: z.coerce.number().int().min(5).max(ONE_DAY_IN_MINUTES).default(60),
 
+  /**
+   * SNDR (sndr.sh) sends the platform's email: verification and reset codes, receipts. Leave
+   * SNDR_API_KEY unset to run without email: codes cannot be requested (503), everything else works.
+   * SNDR_FROM's domain must be verified in the SNDR dashboard.
+   */
+  SNDR_API_KEY: optionalSecret,
+  SNDR_FROM: optionalSecret,
+  SNDR_REPLY_TO: optionalSecret,
+  SNDR_API_BASE_URL: z.url().default("https://api.sndr.sh"),
+  /** Signs SNDR's delivery events (bounced, delivered…). Without it the webhook answers 503. */
+  SNDR_WEBHOOK_SECRET: optionalSecret,
+  /** Keys the one-time-code hashes. Rotating it invalidates codes in flight, nothing else. */
+  OTP_SECRET: optionalSecret.refine(
+    (value) => value === undefined || value.length >= MIN_OTP_SECRET_LENGTH,
+    `must be at least ${MIN_OTP_SECRET_LENGTH} characters`,
+  ),
+  /** The web app's public address, for links inside emails. */
+  APP_PUBLIC_URL: optionalUrl,
+
   /** Private directory for uploaded import files (V1 storage adapter). Relative to the working directory. */
   IMPORT_STORAGE_DIR: z.string().min(1).default("var/imports"),
 
@@ -183,6 +205,15 @@ function crossFieldProblems(env: z.infer<typeof envSchema>): string[] {
   const problems: string[] = [];
   if ((env.STREAM_API_KEY === undefined) !== (env.STREAM_WEBHOOK_SECRET === undefined)) {
     problems.push("STREAM_API_KEY and STREAM_WEBHOOK_SECRET: set both, or neither");
+  }
+  if (env.SNDR_API_KEY !== undefined && env.SNDR_FROM === undefined) {
+    problems.push("SNDR_FROM: required when SNDR_API_KEY is set (a sender on a verified domain)");
+  }
+  if (env.SNDR_API_KEY !== undefined && env.OTP_SECRET === undefined) {
+    problems.push("OTP_SECRET: required when SNDR_API_KEY is set (openssl rand -hex 32)");
+  }
+  if (env.NODE_ENV === "production" && !env.SNDR_API_BASE_URL.startsWith("https://")) {
+    problems.push("SNDR_API_BASE_URL: must use https in production");
   }
   // The API key travels on every request to this URL: plain HTTP is for local fakes only.
   if (env.NODE_ENV === "production" && !env.STREAM_API_BASE_URL.startsWith("https://")) {
@@ -291,6 +322,20 @@ function toAppConfig(env: z.infer<typeof envSchema>) {
       successUrl: env.PAYMENT_SUCCESS_URL ?? null,
       failureUrl: env.PAYMENT_FAILURE_URL ?? null,
       checkoutTtlMinutes: env.CHECKOUT_TTL_MINUTES,
+    },
+    email: {
+      sndr:
+        env.SNDR_API_KEY !== undefined && env.SNDR_FROM !== undefined
+          ? {
+              apiKey: env.SNDR_API_KEY,
+              from: env.SNDR_FROM,
+              replyTo: env.SNDR_REPLY_TO ?? null,
+              baseUrl: env.SNDR_API_BASE_URL,
+              webhookSecret: env.SNDR_WEBHOOK_SECRET ?? null,
+            }
+          : null,
+      otpSecret: env.OTP_SECRET ?? null,
+      appUrl: env.APP_PUBLIC_URL?.replace(/\/+$/, "") ?? null,
     },
     imports: {
       storageDir: env.IMPORT_STORAGE_DIR,
