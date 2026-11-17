@@ -262,6 +262,22 @@
     width: 8rem;
     height: auto;
   }
+  /* The gold fold of the Q, layered exactly over the rest of the logo. */
+  :where(.brand-mark) {
+    position: relative;
+    display: block;
+  }
+  :where(.brand-fold) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    animation: fold-draw var(--motion-slow) var(--ease-out) 240ms backwards;
+    transition: translate var(--motion-base) var(--ease-out);
+  }
+  /* Forward along the fold's own diagonal: the Q's tail points onward. */
+  :where(.brand:hover .brand-fold, .brand:focus-visible .brand-fold) {
+    translate: 0.7% 1.2%;
+  }
   :where(.brand-tagline) {
     color: var(--color-text-muted);
     font-size: 0.625rem;
@@ -1895,6 +1911,9 @@
     --motion-slow: 0ms;
     --stagger-step: 0ms;
   }
+  .brand-fold {
+    animation: none;
+  }
 }
 
 /* Admin panel (A1). Same tokens as the workspace; no new visual language. */
@@ -3047,6 +3066,13 @@
     transform: translateY(10px);
   }
 }
+/* The fold is drawn from the Q outwards: revealed left to right, settling into place. */
+@keyframes fold-draw {
+  from {
+    clip-path: inset(0 80% 0 20%);
+    translate: -0.7% -1.2%;
+  }
+}
 @keyframes fade {
   from {
     opacity: 0;
@@ -3998,5 +4024,65 @@
   :where(.legal__closing) {
     font-weight: 600;
     color: var(--color-navy);
+  }
+}
+
+/* Admin: accounts and roles. */
+@layer components {
+  :where(.users-search) {
+    flex-wrap: nowrap;
+  }
+  :where(.users-search .field__input) {
+    flex: 1;
+    min-width: 0;
+  }
+  :where(.badge--danger) {
+    background: var(--color-danger-surface);
+    color: var(--color-danger);
+  }
+  :where(.badge--accent) {
+    background: var(--color-gold-surface);
+    color: var(--color-gold-ink);
+  }
+  :where(.users-head) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  :where(.users-contact) {
+    margin-inline-end: var(--space-2);
+  }
+  :where(.users-roles) {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-2);
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  }
+  :where(.users-roles legend) {
+    margin-bottom: var(--space-2);
+    font-weight: 600;
+  }
+  :where(.users-role) {
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-small);
+    cursor: pointer;
+  }
+  :where(.users-role:has(input:checked)) {
+    border-color: var(--color-blue);
+    background: var(--color-blue-surface);
+  }
+  :where(.users-role input) {
+    margin-top: 0.3rem;
+    accent-color: var(--color-blue);
+  }
+  :where(.users-role span) {
+    display: grid;
   }
 }

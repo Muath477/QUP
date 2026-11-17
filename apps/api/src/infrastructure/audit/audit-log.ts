@@ -18,6 +18,9 @@ import type { DbExecutor } from "../database/executor.js";
 
 export const AuditAction = {
   RoleGranted: "user.role.grant",
+  RoleRevoked: "user.role.revoke",
+  UserSuspended: "user.suspend",
+  UserReactivated: "user.reactivate",
   TaxonomyPublished: "taxonomy.publish",
   QuestionPublished: "question.publish",
   QuestionArchived: "question.archive",
