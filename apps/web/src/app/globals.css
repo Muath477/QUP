@@ -4000,3 +4000,63 @@
     color: var(--color-navy);
   }
 }
+
+/* Admin: accounts and roles. */
+@layer components {
+  :where(.users-search) {
+    flex-wrap: nowrap;
+  }
+  :where(.users-search .field__input) {
+    flex: 1;
+    min-width: 0;
+  }
+  :where(.badge--danger) {
+    background: var(--color-danger-surface);
+    color: var(--color-danger);
+  }
+  :where(.badge--accent) {
+    background: var(--color-gold-surface);
+    color: var(--color-gold-ink);
+  }
+  :where(.users-head) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  :where(.users-contact) {
+    margin-inline-end: var(--space-2);
+  }
+  :where(.users-roles) {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-2);
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  }
+  :where(.users-roles legend) {
+    margin-bottom: var(--space-2);
+    font-weight: 600;
+  }
+  :where(.users-role) {
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-small);
+    cursor: pointer;
+  }
+  :where(.users-role:has(input:checked)) {
+    border-color: var(--color-blue);
+    background: var(--color-blue-surface);
+  }
+  :where(.users-role input) {
+    margin-top: 0.3rem;
+    accent-color: var(--color-blue);
+  }
+  :where(.users-role span) {
+    display: grid;
+  }
+}

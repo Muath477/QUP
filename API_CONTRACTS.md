@@ -704,6 +704,25 @@ GET   /admin/students/lookup?identifier=  exact email or E.164 phone → { stude
   `WEBHOOK_SIGNATURE_INVALID` (401).
 - Webhook responses: 200 acknowledges (including events that are not ours); 503 asks Stream to retry.
 
+## Admin Users
+
+All routes need `users.manage` (ADMIN). Every change is audited in the same transaction.
+
+- `GET /admin/users?search=&role=&status=&limit=&offset=`: accounts, newest first, with `roles`.
+  `search` matches email, phone or display name; `%` and `_` are literal.
+- `GET /admin/users/:id`: one account.
+- `GET /admin/roles`: every role with the permissions it grants.
+- `PUT /admin/users/:id/roles` `{ "roles": ["STUDENT", "CONTENT_MANAGER"] }`: replaces the roles.
+  Audits `user.role.grant` / `user.role.revoke` per change.
+- `POST /admin/users/:id/suspend`: status `SUSPENDED`, every session revoked. Audits `user.suspend`.
+- `POST /admin/users/:id/reactivate`: status `ACTIVE`. Audits `user.reactivate`.
+
+Errors:
+- `422 CANNOT_CHANGE_OWN_ACCESS`: an admin's own roles or status;
+- `422 LAST_ADMIN_REQUIRED`: the change would leave no active admin (two admins demoting each other at once);
+- `400 ROLES_REQUIRED` / `400 VALIDATION_FAILED`: an empty or unknown role list;
+- `404 USER_NOT_FOUND`.
+
 ## Admin Analytics/Audit
 
 Implemented in C2. Permission `audit.view` (ADMIN only). Windows are `days=7` or `days=30` (anything
