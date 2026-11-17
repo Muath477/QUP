@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { PageHeading } from "@/components/page-heading";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -28,7 +29,18 @@ export default function AccountPage() {
             <dl className="profile-facts">
               <div>
                 <dt>البريد الإلكتروني</dt>
-                <dd>{user.email ? <bdi dir="ltr">{user.email}</bdi> : "غير مضاف"}</dd>
+                <dd>
+                  {user.email ? <bdi dir="ltr">{user.email}</bdi> : "غير مضاف"}
+                  {user.email ? (
+                    user.emailVerified ? (
+                      <span className="status-badge status-badge--active">موثّق</span>
+                    ) : (
+                      <Link href="/verify-email" className="text-link">
+                        وثّقه
+                      </Link>
+                    )
+                  ) : null}
+                </dd>
               </div>
               <div>
                 <dt>رقم الجوال</dt>

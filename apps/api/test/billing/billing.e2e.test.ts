@@ -85,8 +85,8 @@ async function exam(status: "DRAFT" | "ACTIVE" | "ARCHIVED" = "ACTIVE"): Promise
   return row.id;
 }
 
-const planBody = (examId: string, overrides: Record<string, unknown> = {}) => ({
-  examId,
+const planBody = (examIds: string | string[], overrides: Record<string, unknown> = {}) => ({
+  examIds: Array.isArray(examIds) ? examIds : [examIds],
   code: `E2E-PLAN-${randomUUID().slice(0, 8).toUpperCase()}`,
   name: "باقة القدرات",
   priceMinor: PRICE,
@@ -95,18 +95,22 @@ const planBody = (examId: string, overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+async function activePlan(examIds: string[], overrides: Record<string, unknown> = {}) {
+  const created = await call(admin, "POST", "/admin/plans", {
+    payload: planBody(examIds, overrides),
+  });
+  expect(created.statusCode).toBe(201);
+  const planId = created.json<{ id: string }>().id;
+  expect((await call(admin, "POST", `/admin/plans/${planId}/activate`)).statusCode).toBe(200);
+  return planId;
+}
+
 /** An ACTIVE plan on a new ACTIVE exam. */
 async function planOnSale(
   overrides: Record<string, unknown> = {},
 ): Promise<{ planId: string; examId: string }> {
   const examId = await exam();
-  const created = await call(admin, "POST", "/admin/plans", {
-    payload: planBody(examId, overrides),
-  });
-  expect(created.statusCode).toBe(201);
-  const planId = created.json<{ id: string }>().id;
-  expect((await call(admin, "POST", `/admin/plans/${planId}/activate`)).statusCode).toBe(200);
-  return { planId, examId };
+  return { planId: await activePlan([examId], overrides), examId };
 }
 
 interface PaymentBody {
@@ -242,10 +246,15 @@ describe("plans", () => {
       items: [
         {
           id: plan.id,
-          examId,
           name: "باقة القدرات",
+          description: null,
+          features: [],
+          highlighted: false,
           price: { amountMinor: PRICE, currency: "SAR" },
+          compareAtPrice: null,
           durationDays: 90,
+          exams: [{ id: examId, nameAr: "اختبار" }],
+          isBundle: false,
         },
       ],
     });
@@ -292,15 +301,68 @@ describe("plans", () => {
     }
   });
 
-  it("freezes an offered plan's price, and retires it for good", async () => {
+  it("lets an offered plan's price and features change, audited, but not its exams", async () => {
     const { planId, examId } = await planOnSale();
 
     const edit = await call(admin, "PATCH", `/admin/plans/${planId}`, {
-      payload: { priceMinor: 100 },
+      payload: {
+        priceMinor: 14_900,
+        compareAtPriceMinor: PRICE,
+        features: ["التشخيص الكامل", "  ", "التدريب التكيفي"],
+        highlighted: true,
+      },
+    });
+    expect(edit.statusCode).toBe(200);
+    expect(edit.json()).toMatchObject({
+      status: "ACTIVE",
+      price: { amountMinor: 14_900 },
+      compareAtPrice: { amountMinor: PRICE },
+      features: ["التشخيص الكامل", "التدريب التكيفي"],
+      highlighted: true,
+    });
+    const [audit] = await e2eSql<{ metadata_redacted: Record<string, unknown> }[]>`
+      SELECT metadata_redacted FROM audit_logs
+      WHERE resource_id = ${planId} AND action = 'plan.update'`;
+    expect(audit?.metadata_redacted).toMatchObject({
+      "priceMinor.before": PRICE,
+      "priceMinor.after": 14_900,
+      "highlighted.after": true,
+    });
+
+    const exams = await call(admin, "PATCH", `/admin/plans/${planId}`, {
+      payload: { examIds: [await exam()] },
+    });
+    expect(exams.statusCode).toBe(422);
+    expect(errorCode(exams)).toBe("PLAN_FIELDS_LOCKED");
+
+    // A no-op edit changes nothing and is not audited.
+    await call(admin, "PATCH", `/admin/plans/${planId}`, { payload: { priceMinor: 14_900 } });
+    expect(await auditActions(planId)).toEqual(["plan.activate", "plan.update"]);
+    expect((await call(studentA, "GET", `/exams/${examId}/plans`)).json()).toMatchObject({
+      items: [{ price: { amountMinor: 14_900 } }],
+    });
+  });
+
+  it("keeps an offered plan's price at or above what the provider can charge", async () => {
+    const { planId } = await planOnSale();
+    const edit = await call(admin, "PATCH", `/admin/plans/${planId}`, {
+      payload: { priceMinor: 50 },
     });
     expect(edit.statusCode).toBe(422);
-    expect(errorCode(edit)).toBe("PLAN_NOT_DRAFT");
+    expect(errorCode(edit)).toBe("PLAN_NOT_SELLABLE");
+  });
 
+  it("refuses a 'was' price that is not above the price", async () => {
+    const { planId } = await planOnSale();
+    const edit = await call(admin, "PATCH", `/admin/plans/${planId}`, {
+      payload: { compareAtPriceMinor: PRICE },
+    });
+    expect(edit.statusCode).toBe(422);
+    expect(errorCode(edit)).toBe("PLAN_CONTENT_INVALID");
+  });
+
+  it("retires a plan for good, and then keeps it as it was", async () => {
+    const { planId, examId } = await planOnSale();
     expect((await call(admin, "POST", `/admin/plans/${planId}/retire`)).json()).toMatchObject({
       status: "RETIRED",
     });
@@ -308,6 +370,8 @@ describe("plans", () => {
 
     const reactivate = await call(admin, "POST", `/admin/plans/${planId}/activate`);
     expect(errorCode(reactivate)).toBe("INVALID_PLAN_TRANSITION");
+    const edit = await call(admin, "PATCH", `/admin/plans/${planId}`, { payload: { name: "x" } });
+    expect(errorCode(edit)).toBe("PLAN_FIELDS_LOCKED");
     expect(await auditActions(planId)).toEqual(["plan.activate", "plan.retire"]);
   });
 
@@ -453,9 +517,12 @@ describe("checkout", () => {
       "checkoutExpiresAt",
       "checkoutUrl",
       "createdAt",
+      "examIds",
       "id",
       "paidAt",
       "planId",
+      "planName",
+      "refundableUntil",
       "status",
     ]);
   });
@@ -613,6 +680,37 @@ describe("payment webhook", () => {
     expect(replays.map((r) => r.statusCode)).toEqual([200, 200, 200]);
     expect(await entitlementCount(open.examId)).toBe(1);
     expect(await auditActions(open.payment.id)).toEqual(["payment.settle"]);
+  });
+
+  it("queues one receipt and one refund notice, carrying ids only, however often events repeat", async () => {
+    const open = await openCheckout(studentA);
+    const { providerPaymentId } = await pay(open);
+    await pay({ ...open }, PRICE); // a second, distinct event for the same checkout
+    const owed = () =>
+      e2eSql<{ payload: Record<string, unknown> }[]>`
+        SELECT payload FROM outbox_events
+        WHERE aggregate_type = 'payment' AND aggregate_id = ${open.payment.id} ORDER BY created_at`;
+    expect((await owed()).map((e) => e.payload)).toEqual([
+      { kind: "PAYMENT_RECEIPT", userId: studentAId, paymentId: open.payment.id },
+    ]);
+
+    stream.setPayment(providerPaymentId, {
+      current_status: "REFUNDED",
+      amount_in_smallest_unit: PRICE,
+    });
+    const refund = {
+      eventType: "PAYMENT_REFUNDED",
+      paymentId: providerPaymentId,
+      linkId: open.linkId,
+    };
+    await deliver(refund);
+    await deliver(refund);
+    expect((await owed()).map((e) => e.payload.kind)).toEqual([
+      "PAYMENT_RECEIPT",
+      "PAYMENT_REFUNDED",
+    ]);
+    // Nothing in them names or addresses the student.
+    expect(JSON.stringify((await owed()).map((e) => e.payload))).not.toMatch(/@|\+966/);
   });
 
   it("grants access once when the first deliveries race each other", async () => {
@@ -803,6 +901,230 @@ describe("payment webhook", () => {
       "paypal",
     );
     expect(response.statusCode).toBe(404);
+  });
+});
+
+describe("bundle covering several exams", () => {
+  async function bundle() {
+    const examIds = [await exam(), await exam(), await exam()];
+    const planId = await activePlan(examIds, { name: "الباقة الشاملة", priceMinor: 39_900 });
+    return { planId, examIds };
+  }
+
+  async function payFor(token: string, planId: string, amountMinor: number) {
+    const response = await checkout(token, planId);
+    expect(response.statusCode).toBe(201);
+    const payment = response.json<PaymentBody>();
+    const link = stream.links.at(-1);
+    if (!link) throw new Error("no payment link was created");
+    return { payment, linkId: link.id, ...(await pay({ payment, linkId: link.id }, amountMinor)) };
+  }
+
+  it("grants every exam it covers from one payment, once, and a refund takes them all back", async () => {
+    const student = await register("bundle-buyer");
+    const { planId, examIds } = await bundle();
+
+    const { payment, linkId, providerPaymentId } = await payFor(student.token, planId, 39_900);
+    for (const examId of examIds) {
+      expect((await access(student.token, examId)).hasAccess).toBe(true);
+      expect(await entitlementCount(examId)).toBe(1);
+    }
+    const paid = (await call(student.token, "GET", `/payments/${payment.id}`)).json<{
+      planName: string;
+      examIds: string[];
+    }>();
+    expect(paid.planName).toBe("الباقة الشاملة");
+    expect([...paid.examIds].sort()).toEqual([...examIds].sort());
+
+    stream.setPayment(providerPaymentId, {
+      current_status: "REFUNDED",
+      amount_in_smallest_unit: 39_900,
+    });
+    await deliver({ eventType: "PAYMENT_REFUNDED", paymentId: providerPaymentId, linkId });
+    for (const examId of examIds) {
+      expect((await access(student.token, examId)).hasAccess).toBe(false);
+    }
+    const [refundAudit] = await e2eSql<{ metadata_redacted: { revokedEntitlementIds: string } }[]>`
+      SELECT metadata_redacted FROM audit_logs
+      WHERE resource_id = ${payment.id} AND action = 'payment.refund'`;
+    expect(refundAudit?.metadata_redacted.revokedEntitlementIds.split(",")).toHaveLength(3);
+  });
+
+  it("sells on top of one exam's access, and refuses once everything is covered", async () => {
+    const student = await register("bundle-partial");
+    const { planId, examIds } = await bundle();
+    const [first = ""] = examIds;
+    await call(admin, "POST", "/admin/entitlements", {
+      payload: { studentId: student.id, examId: first, durationDays: 30 },
+    });
+
+    const opened = await checkout(student.token, planId);
+    expect(opened.statusCode).toBe(201);
+
+    for (const examId of examIds.slice(1)) {
+      await call(admin, "POST", "/admin/entitlements", {
+        payload: { studentId: student.id, examId, durationDays: null },
+      });
+    }
+    const again = await checkout(student.token, planId);
+    expect(again.statusCode).toBe(409);
+    expect(errorCode(again)).toBe("ALREADY_ENTITLED");
+  });
+
+  it("is not sold, nor listed, while any of its exams is not offered", async () => {
+    const { planId, examIds } = await bundle();
+    const [, second = ""] = examIds;
+    await e2eSql`UPDATE exams SET status = 'DRAFT' WHERE id = ${second}`;
+
+    const response = await checkout(studentA, planId);
+    expect(errorCode(response)).toBe("PLAN_NOT_AVAILABLE");
+    const catalog = (await app.inject({ method: "GET", url: "/api/v1/plans" })).json<{
+      items: { id: string }[];
+    }>();
+    expect(catalog.items.map((p) => p.id)).not.toContain(planId);
+  });
+
+  it("is listed under each exam it covers", async () => {
+    const { planId, examIds } = await bundle();
+    for (const examId of examIds) {
+      const offers = (await call(studentA, "GET", `/exams/${examId}/plans`)).json<{
+        items: { id: string; isBundle: boolean; exams: unknown[] }[];
+      }>();
+      expect(offers.items).toEqual([
+        expect.objectContaining({ id: planId, isBundle: true, exams: expect.any(Array) }),
+      ]);
+    }
+  });
+});
+
+describe("price and duration changes", () => {
+  it("charges the next buyer the new price and replaces a checkout opened at the old one", async () => {
+    const student = await register("repriced");
+    const { planId } = await planOnSale();
+    const before = (await checkout(student.token, planId)).json<PaymentBody>();
+    const oldLink = stream.links.at(-1);
+
+    await call(admin, "PATCH", `/admin/plans/${planId}`, { payload: { priceMinor: 9_900 } });
+
+    const after = await checkout(student.token, planId);
+    expect(after.statusCode).toBe(201);
+    expect(after.json<PaymentBody>().amount.amountMinor).toBe(9_900);
+    expect(await paymentStatus(student.token, before.id)).toBe("CANCELLED");
+
+    // Paying the old link anyway still delivers what it sold, at its own price.
+    if (!oldLink) throw new Error("no payment link was created");
+    await pay({ payment: before, linkId: oldLink.id }, PRICE);
+    expect(await paymentStatus(student.token, before.id)).toBe("SUCCEEDED");
+  });
+
+  it("grants the duration bought, not the one the plan has when the money lands", async () => {
+    const student = await register("redurationed");
+    const { planId, examId } = await planOnSale();
+    const opened = (await checkout(student.token, planId)).json<PaymentBody>();
+    const link = stream.links.at(-1);
+    await call(admin, "PATCH", `/admin/plans/${planId}`, { payload: { durationDays: 365 } });
+
+    if (!link) throw new Error("no payment link was created");
+    await pay({ payment: opened, linkId: link.id });
+    const [entitlement] = await e2eSql<{ starts_at: Date; ends_at: Date }[]>`
+      SELECT starts_at, ends_at FROM entitlements WHERE exam_id = ${examId}`;
+    expect(Number(entitlement?.ends_at) - Number(entitlement?.starts_at)).toBe(90 * DAY_MS);
+  });
+});
+
+describe("public catalog", () => {
+  it("lists plans on sale to anyone, in the admin's order, with their features", async () => {
+    const examId = await exam();
+    const second = await activePlan([examId], { sortOrder: 2, name: "ثانية" });
+    const first = await activePlan([examId], {
+      sortOrder: 1,
+      name: "أولى",
+      description: "وصف قصير",
+      features: ["ميزة أولى", "ميزة ثانية"],
+      highlighted: true,
+    });
+    await call(admin, "POST", "/admin/plans", { payload: planBody(examId, { sortOrder: 0 }) });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/plans" });
+    expect(response.statusCode).toBe(200);
+    const ours = response
+      .json<{ items: { id: string; features: string[]; description: string | null }[] }>()
+      .items.filter((plan) => plan.id === first || plan.id === second);
+    expect(ours.map((plan) => plan.id)).toEqual([first, second]);
+    expect(ours[0]).toMatchObject({
+      features: ["ميزة أولى", "ميزة ثانية"],
+      description: "وصف قصير",
+    });
+    // No internal fields reach the public page.
+    expect(JSON.stringify(response.json())).not.toMatch(/"code"|"status"|"sortOrder"/);
+  });
+});
+
+describe("payment history and the admin ledger", () => {
+  it("shows a student only their own payments, with the refund deadline once paid", async () => {
+    const buyer = await register("history-a");
+    const other = await register("history-b");
+    const open = await (async () => {
+      const { planId } = await planOnSale({ name: "باقة السجل" });
+      const payment = (await checkout(buyer.token, planId)).json<PaymentBody>();
+      const link = stream.links.at(-1);
+      if (!link) throw new Error("no payment link was created");
+      return { payment, linkId: link.id };
+    })();
+    await pay(open);
+
+    const mine = (await call(buyer.token, "GET", "/me/payments")).json<{
+      items: { id: string; planName: string; paidAt: string; refundableUntil: string }[];
+    }>();
+    expect(mine.items).toHaveLength(1);
+    const [item] = mine.items;
+    expect(item).toMatchObject({ id: open.payment.id, planName: "باقة السجل" });
+    expect(Date.parse(item?.refundableUntil ?? "") - Date.parse(item?.paidAt ?? "")).toBe(
+      48 * 3_600_000,
+    );
+    expect((await call(other.token, "GET", "/me/payments")).json()).toEqual({ items: [] });
+  });
+
+  it("pages through every payment for billing managers only, newest first", async () => {
+    for (let i = 0; i < 3; i += 1) await openCheckout(studentB);
+
+    expect((await call(studentA, "GET", "/admin/payments")).statusCode).toBe(403);
+
+    const first = (await call(admin, "GET", "/admin/payments?limit=2")).json<{
+      items: { id: string; createdAt: string; student: { email: string } }[];
+      next: string | null;
+    }>();
+    expect(first.items).toHaveLength(2);
+    expect(first.next).not.toBeNull();
+    const second = (await call(admin, "GET", `/admin/payments?limit=2&cursor=${first.next}`)).json<{
+      items: { id: string; createdAt: string }[];
+    }>();
+    const ids = [...first.items, ...second.items].map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(Date.parse(second.items[0]?.createdAt ?? "")).toBeLessThanOrEqual(
+      Date.parse(first.items[1]?.createdAt ?? ""),
+    );
+
+    const pending = (await call(admin, "GET", "/admin/payments?status=PENDING&limit=100")).json<{
+      items: { status: string }[];
+    }>();
+    expect(pending.items.every((p) => p.status === "PENDING")).toBe(true);
+
+    const bad = await call(admin, "GET", "/admin/payments?cursor=not-a-cursor");
+    expect(bad.statusCode).toBe(400);
+  });
+
+  it("sums what came in over the window", async () => {
+    const response = await call(admin, "GET", "/admin/billing/summary?days=30");
+    expect(response.statusCode).toBe(200);
+    const summary = response.json<{
+      succeeded: { count: number; amount: { amountMinor: number; currency: string } };
+      abandoned: number;
+    }>();
+    expect(summary.succeeded.count).toBeGreaterThan(0);
+    expect(summary.succeeded.amount.currency).toBe("SAR");
+    expect((await call(admin, "GET", "/admin/billing/summary?days=9")).statusCode).toBe(400);
+    expect((await call(studentA, "GET", "/admin/billing/summary?days=7")).statusCode).toBe(403);
   });
 });
 

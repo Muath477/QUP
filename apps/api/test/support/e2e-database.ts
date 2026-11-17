@@ -58,6 +58,11 @@ export async function deleteE2eUsers(): Promise<void> {
       SELECT id::text FROM import_batches WHERE uploaded_by IN ${e2eSql(ids)})`;
   await e2eSql`DELETE FROM import_batches WHERE uploaded_by IN ${e2eSql(ids)}`;
   await e2eSql`DELETE FROM learning_events WHERE student_id IN ${e2eSql(ids)}`;
+  // Mail owed to, and logged for, test accounts (the user FK only nulls the log's link).
+  await e2eSql`DELETE FROM email_deliveries WHERE to_address LIKE ${`%@${E2E_EMAIL_DOMAIN}`}`;
+  await e2eSql`
+    DELETE FROM outbox_events
+    WHERE event_type = 'notification.email.requested' AND payload->>'userId' IN ${e2eSql(ids)}`;
   await e2eSql`DELETE FROM ai_runs WHERE requested_by IN ${e2eSql(ids)}`;
   await e2eSql`DELETE FROM question_reports WHERE reported_by IN ${e2eSql(ids)}`;
   await e2eSql.begin(async (tx) => {
@@ -149,20 +154,36 @@ export async function purgeE2eCatalog(): Promise<void> {
       await tx`DELETE FROM assessment_blueprints WHERE id IN ${tx(blueprintIds)}`;
     }
 
-    // Billing: plans belong to the exam; payments and entitlements hang off them.
+    // Billing: a plan covers exams through plan_exams (a bundle covers several);
+    // payments and entitlements hang off plans and exams.
+    const planIds = (
+      await tx<{ id: string }[]>`
+        SELECT DISTINCT plan_id AS id FROM plan_exams WHERE exam_id IN ${tx(examIds)}`
+    ).map((r) => r.id);
     const billingIds = (
       await tx<{ id: string }[]>`
-        SELECT id FROM plans WHERE exam_id IN ${tx(examIds)}
-        UNION ALL SELECT id FROM entitlements WHERE exam_id IN ${tx(examIds)}
-        UNION ALL SELECT p.id FROM payments p JOIN plans pl ON pl.id = p.plan_id
-                  WHERE pl.exam_id IN ${tx(examIds)}`
+        SELECT id FROM entitlements WHERE exam_id IN ${tx(examIds)}
+        ${
+          planIds.length > 0
+            ? tx`UNION ALL SELECT id FROM plans WHERE id IN ${tx(planIds)}
+        UNION ALL SELECT id FROM payments WHERE plan_id IN ${tx(planIds)}
+        UNION ALL SELECT id FROM entitlements WHERE plan_id IN ${tx(planIds)}`
+            : tx``
+        }`
     ).map((r) => r.id);
     if (billingIds.length > 0) {
       await tx`DELETE FROM audit_logs WHERE resource_id IN ${tx(billingIds)}`;
-      await tx`DELETE FROM entitlements WHERE exam_id IN ${tx(examIds)}`;
+      // Receipts and refund notices owed for these payments.
       await tx`
-        DELETE FROM payments WHERE plan_id IN (SELECT id FROM plans WHERE exam_id IN ${tx(examIds)})`;
-      await tx`DELETE FROM plans WHERE exam_id IN ${tx(examIds)}`;
+        DELETE FROM outbox_events WHERE aggregate_type = 'payment' AND aggregate_id IN ${tx(billingIds)}`;
+    }
+    await tx`DELETE FROM entitlements WHERE exam_id IN ${tx(examIds)}`;
+    if (planIds.length > 0) {
+      await tx`DELETE FROM entitlements WHERE plan_id IN ${tx(planIds)}`;
+      await tx`DELETE FROM payments WHERE plan_id IN ${tx(planIds)}`;
+      // Triggers are off, so the plan_exams cascade does not run: clear it explicitly.
+      await tx`DELETE FROM plan_exams WHERE plan_id IN ${tx(planIds)}`;
+      await tx`DELETE FROM plans WHERE id IN ${tx(planIds)}`;
     }
 
     const versionIds = (

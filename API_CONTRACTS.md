@@ -36,6 +36,11 @@ GET  /auth/me
 PATCH /auth/me
 POST /auth/password
 POST /auth/sessions/revoke
+POST /auth/email/verification     mail a code to the signed-in user's address
+POST /auth/email/verify           { code } — verify the address
+POST /auth/password/forgot        PUBLIC { email } — mail a reset code
+POST /auth/password/reset         PUBLIC { email, code, newPassword }
+POST /email/webhooks/sndr         provider only; authenticated by signature, not by session
 ```
 
 - `register`: `{ email?, phone?, password, displayName? }` — at least one of email/phone;
@@ -43,16 +48,41 @@ POST /auth/sessions/revoke
 - `login`: `{ identifier, password }` — identifier is the email or the phone. `200` + session cookie.
   Unknown account and wrong password both return `401 INVALID_CREDENTIALS`.
 - `logout`: `204`, clears the cookie. `sessions/revoke`: signs out every *other* session, `204`.
-- `me`: `{ user, roles, permissions }`.
+- `me`: `{ user, roles, permissions, features }`. `user.emailVerified` is true once the address was
+  proved with a code. `features.emailCodes` says whether this deployment can mail codes at all.
 - `PATCH me`: `{ displayName }` — trimmed, at most 80 characters; blank clears it. `200 { user }`.
 - `password`: `{ currentPassword, newPassword }` — new password follows the registration policy.
   A wrong current password returns `422 CURRENT_PASSWORD_INCORRECT`. `204`; every other session is
   signed out, the current one stays. Rate-limited like login.
-- No OTP/verification (OPEN_QUESTIONS.md #6).
+- Sign-up is not gated on verification (OPEN_QUESTIONS.md #6); codes verify an address and recover a password.
+
+One-time codes (email only — OPEN_QUESTIONS.md #6a, #6c):
+- `email/verification` → `202 { validForMinutes, resendAfterSeconds }`. The account needs an email
+  (`422 EMAIL_REQUIRED`) that is not verified yet (`409 EMAIL_ALREADY_VERIFIED`).
+- `email/verify` → `204`. `code` may carry spaces or Arabic-Indic digits.
+- `password/forgot` → `202 { validForMinutes, resendAfterSeconds }` **whatever the address is**: registered,
+  unknown, suspended, phone-only, throttled, or one the mail could not be sent to. Nothing is mailed
+  unless the account exists, is active and is not throttled.
+- `password/reset` → `204`. Sets the password, **signs the account out everywhere**, verifies the
+  address, queues a "password changed" email. Every failure is `400 INVALID_OR_EXPIRED_CODE`.
+- A code: 6 digits, valid 10 minutes, single use; five wrong guesses burn it; one request per minute
+  and five per hour per user and purpose (`429 CODE_REQUESTED_TOO_OFTEN`, `details.retryAfterSeconds`);
+  a newer code replaces the older. All four routes also share the per-IP credential budget.
+- `503 EMAIL_NOT_CONFIGURED` (no SNDR credentials), `503 EMAIL_UNAVAILABLE` (the provider could not take it
+  after two tries; the unsent code is discarded, so asking again is allowed at once).
+- `email/webhooks/sndr`: `email.delivered` / `email.bounced` / `email.failed` update `email_deliveries`.
+  `401` bad or stale signature; `404 EMAIL_NOT_FOUND` asks SNDR to retry (our record of the send may not be
+  written yet; events older than 10 minutes for an unknown message are dropped with `200`);
+  `503` when no webhook secret is set. Excluded from the OpenAPI document and from the web proxy.
+
+Emails the platform sends: verification and reset codes (synchronous, retried twice); a payment
+receipt, a refund notice and a password-changed notice (queued in the outbox with the change itself,
+sent by the worker with backoff — apps/api `notifications`).
 
 Errors: `VALIDATION_FAILED` (400, with `details: [{ path, message }]`), `INVALID_CREDENTIALS` (401),
 `UNAUTHENTICATED` (401), `ACCOUNT_DISABLED` (403), `FORBIDDEN` (403), `IDENTIFIER_TAKEN` (409),
-`RATE_LIMITED` (429).
+`RATE_LIMITED` (429), `INVALID_OR_EXPIRED_CODE` (400), `CODE_REQUESTED_TOO_OFTEN` (429),
+`EMAIL_REQUIRED` (422), `EMAIL_ALREADY_VERIFIED` (409), `EMAIL_NOT_CONFIGURED` / `EMAIL_UNAVAILABLE` (503).
 
 ## Exams
 
@@ -667,38 +697,63 @@ Webhook:
 - replay protection.
 - idempotent transitions.
 
-Implemented (provider: Stream — OPEN_QUESTIONS.md #2, #5a):
+Implemented (provider: Stream — OPEN_QUESTIONS.md #2, #5a; packages and bundles — #3, 2026-11-16):
 ```text
-GET   /exams/:examId/plans              plans on sale (none unless the exam is ACTIVE)
+GET   /plans                            PUBLIC. Every plan on sale, in display order (landing page)
+GET   /exams/:examId/plans              plans on sale that unlock the exam: its own and bundles with it
 GET   /exams/:examId/my-access          { examId, hasAccess, activeUntil }  (activeUntil null = no end)
 GET   /me/entitlements                  the caller's entitlements, newest first
+GET   /me/payments                      the caller's payments, newest first
 POST  /payments                         { planId } + Idempotency-Key → 201 new · 200 existing checkout
 GET   /payments/:id                     the caller's payment; poll this after returning from checkout
 POST  /payments/webhooks/stream         provider only; authenticated by signature, not by session
 
 GET   /admin/plans?examId=              permission billing.manage
-POST  /admin/plans                      { examId, code, name, priceMinor, currency, durationDays|null } → DRAFT
-PATCH /admin/plans/:id                  DRAFT only (422 PLAN_NOT_DRAFT otherwise)
+POST  /admin/plans                      { examIds[], code, name, description?, features?, highlighted?,
+                                          sortOrder?, priceMinor, compareAtPriceMinor?, currency,
+                                          durationDays|null } → DRAFT
+PATCH /admin/plans/:id                  any of the content fields; audited (plan.update, before/after)
 POST  /admin/plans/:id/activate         DRAFT → ACTIVE, audited
 POST  /admin/plans/:id/retire           → RETIRED, audited; existing entitlements are kept
+GET   /admin/payments?status=&cursor=&limit=  ledger, newest first, keyset cursor → { items, next }
+GET   /admin/billing/summary?days=7|30  { succeeded{count,amount}, refunded{count,amount}, abandoned }
 POST  /admin/entitlements               { studentId, examId, durationDays|null } manual grant, audited
 POST  /admin/entitlements/:id/revoke    idempotent, audited
 GET   /admin/students/lookup?identifier=  exact email or E.164 phone → { student, entitlements }
 ```
 - Money is `{ amountMinor, currency }`: an integer count of minor units (halalas), never a float.
-  SAR only; an offered plan costs at least 100 (1.00 SAR). Price and duration are frozen once ACTIVE.
-- Payment view: `{ id, planId, status, amount, checkoutUrl, checkoutExpiresAt, paidAt, createdAt }`.
-  `status`: `PENDING | SUCCEEDED | FAILED | REFUNDED | CANCELLED`. `checkoutUrl` is the provider's
-  hosted page, present only while PENDING. The client sends the plan and nothing else: the price is
-  the plan's, the student is the session's.
+  SAR only; an offered plan costs at least 100 (1.00 SAR).
+- A plan unlocks one exam or several (a bundle). Paying grants one entitlement per exam it covers,
+  in the same transaction. A bundle is on sale only while every exam in it is ACTIVE.
+- What a plan may change (plan-rules.ts): DRAFT — everything; ACTIVE — name, description,
+  features, highlighted, sortOrder, price, compareAtPrice, duration, but not its exams
+  (`422 PLAN_FIELDS_LOCKED`); RETIRED — nothing. `compareAtPriceMinor` must be above the price
+  (`422 PLAN_CONTENT_INVALID`). Features: up to 12 lines of 160 characters; blank lines dropped.
+- A price or duration change reaches the next buyer only: each payment keeps the amount it was
+  opened for and freezes what it bought (`payments.terms`: plan name, duration, exams). An open
+  checkout at the old price is cancelled and replaced on the student's next attempt.
+- Plan offer view: `{ id, name, description, features, highlighted, price, compareAtPrice,
+  durationDays, exams: [{ id, nameAr }], isBundle }` — no code, status or sort order.
+- Payment view: `{ id, planId, planName, examIds, status, amount, checkoutUrl, checkoutExpiresAt,
+  paidAt, refundableUntil, createdAt }`. `status`: `PENDING | SUCCEEDED | FAILED | REFUNDED |
+  CANCELLED`. `checkoutUrl` is the provider's hosted page, present only while PENDING.
+  `refundableUntil` = paidAt + 48 h on a paid payment (refund policy, OPEN_QUESTIONS.md #5). The
+  client sends the plan and nothing else: the price is the plan's, the student is the session's.
+- Buying is refused (`409 ALREADY_ENTITLED`) only when the student already has access to every
+  exam the plan covers. Access to some of a bundle's exams does not block it: those exams' new
+  period starts when the current one ends.
 - One open checkout per student and plan: asking again returns the same one (200) until it expires
-  (`CHECKOUT_TTL_MINUTES`, default 60), then a fresh one replaces it.
+  (`CHECKOUT_TTL_MINUTES`, default 60) or the plan's price/duration changes, then a fresh one
+  replaces it.
 - **Returning from the checkout page proves nothing.** A payment becomes SUCCEEDED only after a
   signed webhook *and* Stream's own API confirming status, amount and currency. Payment and
   entitlement then commit in one transaction; a replayed or duplicated event grants nothing more.
-- Full refund at Stream ⇒ payment REFUNDED, entitlement REVOKED. Partial refund ⇒ logged, access kept.
+- Full refund at Stream ⇒ payment REFUNDED, all its entitlements REVOKED. Partial refund ⇒ logged,
+  access kept.
 - Errors: `PLAN_NOT_AVAILABLE` (404), `ALREADY_ENTITLED` (409), `CHECKOUT_SUPERSEDED` (409),
   `IDEMPOTENCY_KEY_REUSED` (422), `PLAN_NOT_SELLABLE` (422), `INVALID_PLAN_TRANSITION` (422),
+  `PLAN_FIELDS_LOCKED` (422, `details.fields`), `PLAN_CONTENT_INVALID` (422, `details.problems`),
+  `EXAM_NOT_FOUND` (404, also for an archived exam on a plan),
   `PLAN_CODE_TAKEN` (409), `STUDENT_NOT_FOUND` (404, also for a partial identifier), `PAYMENT_NOT_FOUND` (404, also for another student's payment),
   `PAYMENTS_NOT_CONFIGURED` (503), `PAYMENT_PROVIDER_UNAVAILABLE` (503, nothing was charged),
   `WEBHOOK_SIGNATURE_INVALID` (401).

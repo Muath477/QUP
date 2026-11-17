@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-
 import { LegalPage } from "@/components/legal-page";
-import { termsAndConditions } from "@/lib/legal-content";
+import { LEGAL_DOCUMENTS } from "@/lib/legal";
+
+const document = LEGAL_DOCUMENTS.terms;
 
 export const metadata: Metadata = {
-  title: "الشروط والأحكام | QUP",
-  description: "شروط استخدام منصة QUP والاشتراك فيها، وسياسة الاسترجاع.",
+  title: document.title,
+  description: document.summary,
 };
 
 export default function TermsPage() {
-  return <LegalPage document={termsAndConditions} kind="terms" />;
+  return <LegalPage document={document} />;
 }

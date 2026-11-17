@@ -367,12 +367,17 @@ Critical uniqueness prevents duplicate evidence from same attempt/node.
 
 ### plans
 - id
-- exam_id
+- exam_id — deprecated (0018): nullable, no longer written, kept for rollback; dropped later
 - code/name
-- price_minor
+- description, features (JSON array of lines), highlighted, sort_order (0018: the pricing page)
+- price_minor, compare_at_price_minor nullable (> price_minor, the struck-through "was" price)
 - currency
 - duration_days nullable
 - status
+
+### plan_exams (0018)
+- plan_id (cascade), exam_id (restrict); PK (plan_id, exam_id)
+- the exams a plan unlocks: one for a single-exam plan, several for a bundle
 
 ### payments
 - id
@@ -384,10 +389,11 @@ Critical uniqueness prevents duplicate evidence from same attempt/node.
 - idempotency_key
 - checkout_url / checkout_expires_at (migration 0009: the provider's hosted page and its expiry)
 - redacted provider payload
+- terms JSON (0018): `{ planName, durationDays, examIds }` frozen at checkout — what was bought
 - created_at/paid_at
 
 One PENDING payment per student + plan (partial unique index, 0009): two open links for one
-purchase are how a student pays twice.
+purchase are how a student pays twice. Ledger index on (created_at, id) (0018).
 
 ### entitlements
 - id
@@ -398,6 +404,33 @@ purchase are how a student pays twice.
 - source_reference
 - starts_at/ends_at
 - status
+
+Replay guard: unique (source, source_reference, exam_id) where source_reference is set (0018,
+was (source, source_reference)): one bundle payment grants exactly one entitlement per exam.
+
+## Email and one-time codes (0019)
+
+### one_time_codes
+- id, user_id (cascade)
+- purpose EMAIL_VERIFICATION / PASSWORD_RESET (CHECK)
+- email: the address the code was mailed to
+- code_hash: HMAC-SHA256 hex — never the code
+- expires_at (10 minutes), failed_attempts, consumed_at (spent, burned or replaced)
+- created_at
+
+One live code per user and purpose (partial unique index where consumed_at IS NULL). Cooldown and
+hourly limit read recent rows by (user_id, purpose, created_at).
+
+### email_deliveries
+- id, user_id (set null)
+- kind (OTP_EMAIL_VERIFICATION, OTP_PASSWORD_RESET, PAYMENT_RECEIPT, PAYMENT_REFUNDED, PASSWORD_CHANGED)
+- to_address, provider ("sndr")
+- status QUEUED → SENT → DELIVERED / BOUNCED, or FAILED (CHECK; moves forward only)
+- provider_message_id, idempotency_key (unique; also the provider's Idempotency-Key)
+- attempts, last_error (provider status and code only — never the message)
+- created_at, sent_at, updated_at
+
+No subject, body or code is kept: the table answers "did the email go out", not "what did it say".
 
 ## Operations
 

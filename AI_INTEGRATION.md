@@ -104,7 +104,7 @@ Assumptions: OPEN_QUESTIONS.md #19a.
 - **Provider:** DeepSeek is the production provider (OPEN_QUESTIONS.md #17). `AI_PROVIDER=deepseek`
   needs only `AI_API_KEY`; `AI_MODEL` defaults to `deepseek-chat`. The DeepSeek and OpenAI presets
   send `response_format: json_object`, so a reply is always one JSON object.
-- **Knowledge Library** (`ai_knowledge_items`, `ai_knowledge_chunks`, migration 0018): admins
+- **Knowledge Library** (`ai_knowledge_items`, `ai_knowledge_chunks`, migration 0020): admins
   (`ai.manage`) add entries per exam, optionally per skill, at `/admin/ai/knowledge`.
   - `EXAMPLE`: model questions or a whole model exam. Generation imitates their style.
   - `REFERENCE`: summaries and explanations. The study chat answers from them.

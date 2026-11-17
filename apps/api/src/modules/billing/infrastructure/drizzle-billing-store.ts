@@ -1,33 +1,55 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { type Database, tables } from "@qup/db";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ne, sql } from "drizzle-orm";
 
 import type { ActorContext } from "../../../common/actor.js";
 import { AuditAction, writeAudit } from "../../../infrastructure/audit/audit-log.js";
 import { DATABASE } from "../../../infrastructure/database/database.module.js";
 import type { DbExecutor, DbTransaction } from "../../../infrastructure/database/executor.js";
 import { PgErrorCode, pgErrorInfo } from "../../../infrastructure/database/postgres-errors.js";
+import { OutboxEventType, writeOutbox } from "../../../infrastructure/outbox/outbox.js";
 import { PaymentNotFound, PlanCodeTaken } from "../domain/billing.errors.js";
 import { nextEntitlementPeriod } from "../domain/entitlement-period.js";
 import type { PlanStatus } from "../domain/plan-lifecycle.js";
+import { contentChanges, type PlanContent, type PurchasedTerms } from "../domain/plan-rules.js";
 import type {
   BillingStore,
   Entitlement,
   NewPaymentResult,
   Payment,
+  PaymentFilter,
+  PaymentRecord,
   Plan,
+  PlanUpdate,
   RefundResult,
+  RevenueSummary,
   SettleResult,
 } from "../domain/ports.js";
 
-const { plans, payments, entitlements, users } = tables;
+const { plans, planExams, payments, entitlements, users } = tables;
+
+/** SAR only in V1 (money.ts); the summary reports in it. */
+const SUMMARY_CURRENCY = "SAR";
+
+/**
+ * The plan's exams, sorted, as text (a uuid[] would need its own parser).
+ * Correlated on the outer `plans` row, so it also works under FOR UPDATE.
+ */
+const planExamIds = sql<string[]>`coalesce(
+  (SELECT array_agg(pe.exam_id::text ORDER BY pe.exam_id) FROM plan_exams pe WHERE pe.plan_id = ${plans.id}),
+  '{}'::text[])`;
 
 const planColumns = {
   id: plans.id,
-  examId: plans.examId,
   code: plans.code,
   name: plans.name,
+  description: plans.description,
+  features: plans.features,
+  highlighted: plans.highlighted,
+  sortOrder: plans.sortOrder,
+  examIds: planExamIds,
   priceMinor: plans.priceMinor,
+  compareAtPriceMinor: plans.compareAtPriceMinor,
   currency: plans.currency,
   durationDays: plans.durationDays,
   status: plans.status,
@@ -47,6 +69,7 @@ const paymentColumns = {
   idempotencyKey: payments.idempotencyKey,
   checkoutUrl: payments.checkoutUrl,
   checkoutExpiresAt: payments.checkoutExpiresAt,
+  terms: payments.terms,
   createdAt: payments.createdAt,
   paidAt: payments.paidAt,
 };
@@ -68,15 +91,20 @@ const AUDITED_PLAN_TRANSITIONS: Partial<Record<PlanStatus, AuditAction>> = {
   RETIRED: AuditAction.PlanRetired,
 };
 
+/** Plan content columns as the table names them; `examIds` lives in plan_exams. */
+function planRow(content: Partial<PlanContent>) {
+  const { examIds: _examIds, features, ...scalars } = content;
+  return { ...scalars, ...(features === undefined ? {} : { features: [...features] }) };
+}
+
 @Injectable()
 export class DrizzleBillingStore implements BillingStore {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
   /* ------------------------------- Plans --------------------------------- */
 
-  async findPlan(planId: string): Promise<Plan | null> {
-    const [row] = await this.db.select(planColumns).from(plans).where(eq(plans.id, planId));
-    return row ?? null;
+  findPlan(planId: string): Promise<Plan | null> {
+    return planById(this.db, planId);
   }
 
   listPlans(filter: { examId?: string; status?: PlanStatus }): Promise<Plan[]> {
@@ -85,25 +113,39 @@ export class DrizzleBillingStore implements BillingStore {
       .from(plans)
       .where(
         and(
-          filter.examId ? eq(plans.examId, filter.examId) : undefined,
+          filter.examId
+            ? sql`EXISTS (SELECT 1 FROM plan_exams pe WHERE pe.plan_id = ${plans.id} AND pe.exam_id = ${filter.examId})`
+            : undefined,
           filter.status ? eq(plans.status, filter.status) : undefined,
         ),
       )
-      .orderBy(asc(plans.priceMinor), asc(plans.code));
+      .orderBy(asc(plans.sortOrder), asc(plans.priceMinor), asc(plans.code));
   }
 
-  async createPlan(input: {
-    examId: string;
-    code: string;
-    name: string;
-    priceMinor: number;
-    currency: string;
-    durationDays: number | null;
-  }): Promise<Plan> {
+  async createPlan(input: PlanContent & { code: string; currency: string }): Promise<Plan> {
     try {
-      const [plan] = await this.db.insert(plans).values(input).returning(planColumns);
-      if (!plan) throw new Error("Plan insert returned no row.");
-      return plan;
+      return await this.db.transaction(async (tx) => {
+        const [created] = await tx
+          .insert(plans)
+          .values({
+            code: input.code,
+            name: input.name,
+            description: input.description,
+            features: [...input.features],
+            highlighted: input.highlighted,
+            sortOrder: input.sortOrder,
+            priceMinor: input.priceMinor,
+            compareAtPriceMinor: input.compareAtPriceMinor,
+            currency: input.currency,
+            durationDays: input.durationDays,
+          })
+          .returning({ id: plans.id });
+        if (!created) throw new Error("Plan insert returned no row.");
+        await replaceExams(tx, created.id, input.examIds);
+        const plan = await planById(tx, created.id);
+        if (!plan) throw new Error("Plan vanished inside its own transaction.");
+        return plan;
+      });
     } catch (error) {
       const info = pgErrorInfo(error);
       if (info?.code === PgErrorCode.uniqueViolation && info.constraint === "plans_code_unique") {
@@ -113,17 +155,32 @@ export class DrizzleBillingStore implements BillingStore {
     }
   }
 
-  async updateDraftPlan(
-    planId: string,
-    changes: { name?: string; priceMinor?: number; durationDays?: number | null },
-  ): Promise<Plan | null> {
-    const [plan] = await this.db
-      .update(plans)
-      .set(changes)
-      // The status check is part of the write: a plan activated a moment ago is not edited.
-      .where(and(eq(plans.id, planId), eq(plans.status, "DRAFT")))
-      .returning(planColumns);
-    return plan ?? null;
+  updatePlan(planId: string, update: PlanUpdate, actor: ActorContext): Promise<Plan | null> {
+    return this.db.transaction(async (tx) => {
+      const [current] = await tx
+        .select(planColumns)
+        .from(plans)
+        .where(eq(plans.id, planId))
+        .for("update");
+      if (!current) return null;
+
+      // Decided against the locked row: a concurrent activation cannot slip in between.
+      const changes = update(current);
+      const diff = contentChanges(current, changes);
+      if (Object.keys(diff).length === 0) return current;
+
+      const row = planRow(changes);
+      if (Object.keys(row).length > 0) await tx.update(plans).set(row).where(eq(plans.id, planId));
+      if (changes.examIds !== undefined) await replaceExams(tx, planId, changes.examIds);
+
+      await writeAudit(tx, actor, {
+        action: AuditAction.PlanUpdated,
+        resourceType: "plan",
+        resourceId: planId,
+        metadata: { code: current.code, status: current.status, ...diff },
+      });
+      return planById(tx, planId);
+    });
   }
 
   transitionPlan(
@@ -133,12 +190,14 @@ export class DrizzleBillingStore implements BillingStore {
     actor: ActorContext,
   ): Promise<Plan | null> {
     return this.db.transaction(async (tx) => {
-      const [plan] = await tx
+      const [moved] = await tx
         .update(plans)
         .set({ status: to })
         .where(and(eq(plans.id, planId), eq(plans.status, from)))
-        .returning(planColumns);
-      if (!plan) return null;
+        .returning({ id: plans.id });
+      if (!moved) return null;
+      const plan = await planById(tx, moved.id);
+      if (!plan) throw new Error("Plan vanished inside its own transaction.");
 
       const action = AUDITED_PLAN_TRANSITIONS[to];
       if (action) {
@@ -147,7 +206,7 @@ export class DrizzleBillingStore implements BillingStore {
           resourceType: "plan",
           resourceId: plan.id,
           metadata: {
-            examId: plan.examId,
+            examIds: plan.examIds.join(","),
             code: plan.code,
             priceMinor: plan.priceMinor,
             currency: plan.currency,
@@ -271,6 +330,7 @@ export class DrizzleBillingStore implements BillingStore {
     amountMinor: number;
     currency: string;
     idempotencyKey: string;
+    terms: PurchasedTerms;
   }): Promise<NewPaymentResult> {
     try {
       const [payment] = await this.db.insert(payments).values(input).returning(paymentColumns);
@@ -286,6 +346,68 @@ export class DrizzleBillingStore implements BillingStore {
       if (info.constraint === "payments_one_pending") return { kind: "PENDING_EXISTS" };
       throw error;
     }
+  }
+
+  paymentsOf(studentId: string, limit: number): Promise<Payment[]> {
+    return this.db
+      .select(paymentColumns)
+      .from(payments)
+      .where(eq(payments.studentId, studentId))
+      .orderBy(desc(payments.createdAt), desc(payments.id))
+      .limit(limit);
+  }
+
+  listPayments(filter: PaymentFilter): Promise<PaymentRecord[]> {
+    const { before } = filter;
+    return this.db
+      .select({
+        ...paymentColumns,
+        planName: plans.name,
+        student: {
+          id: users.id,
+          email: users.email,
+          phone: users.phone,
+          displayName: users.displayName,
+        },
+        providerPaymentId: sql<
+          string | null
+        >`${payments.providerPayloadRedacted} ->> 'providerPaymentId'`,
+      })
+      .from(payments)
+      .innerJoin(plans, eq(plans.id, payments.planId))
+      .innerJoin(users, eq(users.id, payments.studentId))
+      .where(
+        and(
+          filter.status ? eq(payments.status, filter.status) : undefined,
+          // Keyset, not offset: a page stays stable while new payments arrive.
+          before
+            ? sql`(${payments.createdAt}, ${payments.id}) < (${before.createdAt.toISOString()}::timestamptz, ${before.id}::uuid)`
+            : undefined,
+        ),
+      )
+      .orderBy(desc(payments.createdAt), desc(payments.id))
+      .limit(filter.limit);
+  }
+
+  async revenueSummary(since: Date): Promise<RevenueSummary> {
+    const recent = and(gte(payments.createdAt, since), eq(payments.currency, SUMMARY_CURRENCY));
+    const [row] = await this.db
+      .select({
+        succeededCount: sql<number>`count(*) FILTER (WHERE ${payments.status} = 'SUCCEEDED')::int`,
+        succeededMinor: sql<number>`coalesce(sum(${payments.amountMinor}) FILTER (WHERE ${payments.status} = 'SUCCEEDED'), 0)::bigint`,
+        refundedCount: sql<number>`count(*) FILTER (WHERE ${payments.status} = 'REFUNDED')::int`,
+        refundedMinor: sql<number>`coalesce(sum(${payments.amountMinor}) FILTER (WHERE ${payments.status} = 'REFUNDED'), 0)::bigint`,
+        abandoned: sql<number>`count(*) FILTER (WHERE ${payments.status} IN ('PENDING', 'FAILED', 'CANCELLED'))::int`,
+      })
+      .from(payments)
+      .where(recent);
+    return {
+      since,
+      succeeded: { count: row?.succeededCount ?? 0, amountMinor: Number(row?.succeededMinor ?? 0) },
+      refunded: { count: row?.refundedCount ?? 0, amountMinor: Number(row?.refundedMinor ?? 0) },
+      abandoned: row?.abandoned ?? 0,
+      currency: SUMMARY_CURRENCY,
+    };
   }
 
   async attachCheckout(
@@ -324,11 +446,7 @@ export class DrizzleBillingStore implements BillingStore {
       // provider has the money, so the student gets what they paid for even
       // if we had given up on the checkout.
 
-      const [plan] = await tx
-        .select({ examId: plans.examId, durationDays: plans.durationDays })
-        .from(plans)
-        .where(eq(plans.id, payment.planId));
-      if (!plan) throw new Error(`Plan ${payment.planId} of a payment is missing.`);
+      const terms = payment.terms ?? (await termsFromPlan(tx, payment.planId));
 
       await tx
         .update(payments)
@@ -339,15 +457,21 @@ export class DrizzleBillingStore implements BillingStore {
         })
         .where(eq(payments.id, payment.id));
 
-      const entitlement = await grant(tx, actor, {
-        studentId: payment.studentId,
-        examId: plan.examId,
-        planId: payment.planId,
-        durationDays: plan.durationDays,
-        source: "PAYMENT",
-        // Unique per source: the database refuses a second grant for one payment.
-        sourceReference: payment.id,
-      });
+      // In the terms' (sorted) order: concurrent grants lock exams in one order.
+      const granted: Entitlement[] = [];
+      for (const examId of terms.examIds) {
+        granted.push(
+          await grant(tx, actor, {
+            studentId: payment.studentId,
+            examId,
+            planId: payment.planId,
+            durationDays: terms.durationDays,
+            source: "PAYMENT",
+            // Unique per (source, reference, exam): a replay cannot grant twice.
+            sourceReference: payment.id,
+          }),
+        );
+      }
       await writeAudit(tx, actor, {
         action: AuditAction.PaymentSettled,
         resourceType: "payment",
@@ -358,8 +482,15 @@ export class DrizzleBillingStore implements BillingStore {
           amountMinor: payment.amountMinor,
           currency: payment.currency,
           provider: payment.provider,
-          entitlementId: entitlement.id,
+          entitlementIds: granted.map((e) => e.id).join(","),
         },
+      });
+      // The receipt is owed from the moment the payment committed: queued with it, sent by the worker.
+      await writeOutbox(tx, {
+        type: OutboxEventType.EmailRequested,
+        aggregateType: "payment",
+        aggregateId: payment.id,
+        payload: { kind: "PAYMENT_RECEIPT", userId: payment.studentId, paymentId: payment.id },
       });
       return "SETTLED";
     });
@@ -380,7 +511,11 @@ export class DrizzleBillingStore implements BillingStore {
         .update(entitlements)
         .set({ status: "REVOKED" })
         .where(
-          and(eq(entitlements.source, "PAYMENT"), eq(entitlements.sourceReference, payment.id)),
+          and(
+            eq(entitlements.source, "PAYMENT"),
+            eq(entitlements.sourceReference, payment.id),
+            ne(entitlements.status, "REVOKED"),
+          ),
         )
         .returning({ id: entitlements.id });
 
@@ -392,12 +527,41 @@ export class DrizzleBillingStore implements BillingStore {
           studentId: payment.studentId,
           provider: payment.provider,
           providerPaymentId: confirmation.providerPaymentId,
-          revokedEntitlementId: revoked[0]?.id ?? null,
+          revokedEntitlementIds: revoked.map((e) => e.id).join(","),
         },
+      });
+      await writeOutbox(tx, {
+        type: OutboxEventType.EmailRequested,
+        aggregateType: "payment",
+        aggregateId: payment.id,
+        payload: { kind: "PAYMENT_REFUNDED", userId: payment.studentId, paymentId: payment.id },
       });
       return "REFUNDED";
     });
   }
+}
+
+async function planById(executor: DbExecutor, planId: string): Promise<Plan | null> {
+  const [row] = await executor.select(planColumns).from(plans).where(eq(plans.id, planId));
+  return row ?? null;
+}
+
+async function replaceExams(
+  tx: DbTransaction,
+  planId: string,
+  examIds: readonly string[],
+): Promise<void> {
+  await tx.delete(planExams).where(eq(planExams.planId, planId));
+  if (examIds.length > 0) {
+    await tx.insert(planExams).values(examIds.map((examId) => ({ planId, examId })));
+  }
+}
+
+/** Payments opened before 0018 recorded no terms; their plan could not change since. */
+async function termsFromPlan(tx: DbTransaction, planId: string): Promise<PurchasedTerms> {
+  const plan = await planById(tx, planId);
+  if (!plan) throw new Error(`Plan ${planId} of a payment is missing.`);
+  return { planName: plan.name, durationDays: plan.durationDays, examIds: plan.examIds };
 }
 
 /** The one clock entitlement periods are written and read against. */

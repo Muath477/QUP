@@ -7,6 +7,7 @@ import { isActivePath, isWorkspacePath } from "@/lib/navigation";
 import { hasAdminAccess } from "@/lib/permissions";
 import { useMe } from "@/lib/session";
 import { Brand } from "./brand";
+import { EmailVerifyBanner } from "./email-verify-banner";
 import { Icon, type IconName } from "./icon";
 import { SignOutButton } from "./sign-out-button";
 
@@ -83,7 +84,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             {initial ?? <Icon name="user" />}
           </Link>
         </header>
-        <div className="workspace-content">{children}</div>
+        <div className="workspace-content">
+          {inSession ? null : <EmailVerifyBanner />}
+          {children}
+        </div>
         <nav className="mobile-nav" aria-label="التنقل على الجوال">
           {links.map((link) => (
             <Link

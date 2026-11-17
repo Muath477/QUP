@@ -1,13 +1,22 @@
 import type { ActorContext } from "../../../common/actor.js";
 import type { EntitlementWindow } from "./entitlement-period.js";
 import type { PlanStatus } from "./plan-lifecycle.js";
+import type { PlanContent, PurchasedTerms } from "./plan-rules.js";
 
 export interface Plan {
   id: string;
-  examId: string;
   code: string;
   name: string;
+  description: string | null;
+  /** Shown to buyers, one line each, in order. */
+  features: string[];
+  highlighted: boolean;
+  sortOrder: number;
+  /** The exams the plan unlocks: one, or several for a bundle. Sorted. */
+  examIds: string[];
   priceMinor: number;
+  /** The struck-through "was" price; above `priceMinor` when present. */
+  compareAtPriceMinor: number | null;
   currency: string;
   /** Null: access does not end. */
   durationDays: number | null;
@@ -31,9 +40,38 @@ export interface Payment {
   idempotencyKey: string;
   checkoutUrl: string | null;
   checkoutExpiresAt: Date | null;
+  /** What was bought. Null only for payments opened before terms were recorded. */
+  terms: PurchasedTerms | null;
   createdAt: Date;
   paidAt: Date | null;
 }
+
+/** A payment in the admin ledger: who paid, for what. */
+export interface PaymentRecord extends Payment {
+  planName: string;
+  student: { id: string; email: string | null; phone: string | null; displayName: string | null };
+  /** Stream's id for the money movement, once a webhook named it. */
+  providerPaymentId: string | null;
+}
+
+export interface PaymentFilter {
+  status?: PaymentStatus;
+  /** Exclusive keyset cursor: payments created before this one. */
+  before?: { createdAt: Date; id: string };
+  limit: number;
+}
+
+export interface RevenueSummary {
+  since: Date;
+  succeeded: { count: number; amountMinor: number };
+  refunded: { count: number; amountMinor: number };
+  /** Checkouts opened and never paid (cancelled, failed or still open). */
+  abandoned: number;
+  currency: string;
+}
+
+/** A plan change, applied under a row lock to the plan as it is at that moment. */
+export type PlanUpdate = (current: Plan) => Partial<PlanContent>;
 
 export type EntitlementSource = "PAYMENT" | "ADMIN" | "PROMO";
 
@@ -60,21 +98,16 @@ export type RefundResult = "REFUNDED" | "ALREADY_REFUNDED" | "NEVER_PAID";
 export interface BillingStore {
   /* Plans */
   findPlan(planId: string): Promise<Plan | null>;
+  /** Ordered for display: sortOrder, then price, then code. `examId`: plans covering it. */
   listPlans(filter: { examId?: string; status?: PlanStatus }): Promise<Plan[]>;
   /** Throws PlanCodeTaken on a duplicate code. */
-  createPlan(input: {
-    examId: string;
-    code: string;
-    name: string;
-    priceMinor: number;
-    currency: string;
-    durationDays: number | null;
-  }): Promise<Plan>;
-  /** Applies only while the plan is DRAFT; null when it is not (or does not exist). */
-  updateDraftPlan(
-    planId: string,
-    changes: { name?: string; priceMinor?: number; durationDays?: number | null },
-  ): Promise<Plan | null>;
+  createPlan(input: PlanContent & { code: string; currency: string }): Promise<Plan>;
+  /**
+   * Locks the plan, computes the change from it with `update` (which may throw
+   * a domain error), applies it, and audits the fields that really changed —
+   * one transaction. Null when the plan does not exist.
+   */
+  updatePlan(planId: string, update: PlanUpdate, actor: ActorContext): Promise<Plan | null>;
   /** Moves the plan from `from` to `to` and audits it; null when it was no longer in `from`. */
   transitionPlan(
     planId: string,
@@ -116,7 +149,13 @@ export interface BillingStore {
     amountMinor: number;
     currency: string;
     idempotencyKey: string;
+    terms: PurchasedTerms;
   }): Promise<NewPaymentResult>;
+  /** The student's own payments, newest first. */
+  paymentsOf(studentId: string, limit: number): Promise<Payment[]>;
+  /** The admin ledger, newest first, keyset-paginated. */
+  listPayments(filter: PaymentFilter): Promise<PaymentRecord[]>;
+  revenueSummary(since: Date): Promise<RevenueSummary>;
   /** Records the provider checkout on a still-PENDING payment; false when it no longer is. */
   attachCheckout(
     paymentId: string,
@@ -127,15 +166,15 @@ export interface BillingStore {
   /**
    * The provider confirmed the money arrived. One transaction (SECURITY.md:
    * "entitlement grant atomic with successful payment state"): lock the
-   * payment, mark it SUCCEEDED, grant the entitlement, write the audit entry.
-   * Replays change nothing (DOMAIN_MODEL.md §3).
+   * payment, mark it SUCCEEDED, grant one entitlement per exam it bought,
+   * write the audit entry. Replays change nothing (DOMAIN_MODEL.md §3).
    */
   settlePayment(
     paymentId: string,
     confirmation: { providerPaymentId: string; paidAt: Date },
     actor: ActorContext,
   ): Promise<SettleResult>;
-  /** Full refund: SUCCEEDED → REFUNDED and its entitlement → REVOKED, in one transaction. */
+  /** Full refund: SUCCEEDED → REFUNDED and its entitlements → REVOKED, in one transaction. */
   refundPayment(
     paymentId: string,
     confirmation: { providerPaymentId: string },

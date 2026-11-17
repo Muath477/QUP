@@ -85,3 +85,16 @@ export const changePasswordBody = z.strictObject({
 });
 
 export type ChangePasswordBody = z.output<typeof changePasswordBody>;
+
+/** What a person types for a code: digits, maybe spaced or Arabic-Indic. otp-policy.ts normalizes it. */
+const MAX_CODE_INPUT_LENGTH = 16;
+const codeInput = z.string().trim().min(1).max(MAX_CODE_INPUT_LENGTH);
+
+export const confirmEmailBody = z.strictObject({ code: codeInput });
+export type ConfirmEmailBody = z.output<typeof confirmEmailBody>;
+
+export const forgotPasswordBody = z.strictObject({ email });
+export type ForgotPasswordBody = z.output<typeof forgotPasswordBody>;
+
+export const resetPasswordBody = z.strictObject({ email, code: codeInput, newPassword });
+export type ResetPasswordBody = z.output<typeof resetPasswordBody>;

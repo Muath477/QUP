@@ -43,6 +43,7 @@ const HTTP_STATUS_BY_KIND: Record<DomainErrorKind, number> = {
   NOT_FOUND: 404,
   CONFLICT: 409,
   RULE_VIOLATION: 422,
+  RATE_LIMITED: 429,
   UNAVAILABLE: 503,
 };
 

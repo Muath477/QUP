@@ -1,4 +1,4 @@
--- 0018_ai_knowledge_and_chat
+-- 0020_ai_knowledge_and_chat
 --
 -- AI (C3 follow-up): the knowledge library admins fill per exam (model questions and reference
 -- texts), its retrieval chunks with an Arabic full-text vector kept by the database (RAG), and the

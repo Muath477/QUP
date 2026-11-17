@@ -18,13 +18,31 @@ export class PlanCodeTaken extends DomainError {
   }
 }
 
-/** OPEN_QUESTIONS.md #5a: an offered plan keeps its price and duration. */
-export class PlanNotDraft extends DomainError {
-  readonly code = "PLAN_NOT_DRAFT";
+/** plan-rules.ts: an offered plan keeps its exams; a retired plan keeps everything. */
+export class PlanFieldsLocked extends DomainError {
+  readonly code = "PLAN_FIELDS_LOCKED";
   readonly kind = "RULE_VIOLATION";
 
-  constructor() {
-    super("Only a draft plan can be edited. Create a new plan and retire this one instead.");
+  override readonly details: { fields: readonly string[] };
+
+  constructor(status: string, fields: readonly string[]) {
+    super(
+      status === "RETIRED"
+        ? "A retired plan cannot be edited."
+        : `These fields cannot change while the plan is ${status}: ${fields.join(", ")}. Create a new plan instead.`,
+    );
+    this.details = { fields };
+  }
+}
+
+export class PlanContentInvalid extends DomainError {
+  readonly code = "PLAN_CONTENT_INVALID";
+  readonly kind = "RULE_VIOLATION";
+  override readonly details: { problems: readonly string[] };
+
+  constructor(problems: readonly string[]) {
+    super(`The plan is not valid: ${problems.join(", ")}.`);
+    this.details = { problems };
   }
 }
 
@@ -89,7 +107,7 @@ export class AlreadyEntitled extends DomainError {
   readonly kind = "CONFLICT";
 
   constructor() {
-    super("You already have access to this exam.");
+    super("You already have access to everything this plan includes.");
   }
 }
 

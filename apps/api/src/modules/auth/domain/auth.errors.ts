@@ -58,3 +58,43 @@ export class CurrentPasswordIncorrect extends DomainError {
     super("The current password is incorrect.");
   }
 }
+
+/** One-time codes (otp-policy.ts). */
+export class EmailRequired extends DomainError {
+  readonly code = "EMAIL_REQUIRED";
+  readonly kind = "RULE_VIOLATION";
+
+  constructor() {
+    super("This account has no email address to send a code to.");
+  }
+}
+
+export class EmailAlreadyVerified extends DomainError {
+  readonly code = "EMAIL_ALREADY_VERIFIED";
+  readonly kind = "CONFLICT";
+
+  constructor() {
+    super("This email address is already verified.");
+  }
+}
+
+/** Also what a code for another account, or for an account that does not exist, looks like. */
+export class InvalidOrExpiredCode extends DomainError {
+  readonly code = "INVALID_OR_EXPIRED_CODE";
+  readonly kind = "INVALID_INPUT";
+
+  constructor() {
+    super("The code is wrong or has expired. Request a new one.");
+  }
+}
+
+export class CodeRequestedTooOften extends DomainError {
+  readonly code = "CODE_REQUESTED_TOO_OFTEN";
+  readonly kind = "RATE_LIMITED";
+  override readonly details: { retryAfterSeconds: number };
+
+  constructor(retryAfterSeconds: number) {
+    super("A code was sent recently. Wait a moment before asking for another.");
+    this.details = { retryAfterSeconds };
+  }
+}

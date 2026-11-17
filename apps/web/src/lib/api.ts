@@ -68,6 +68,8 @@ export const isApiError = (error: unknown, code?: string): error is ApiError =>
 export interface User {
   id: string;
   email: string | null;
+  /** True once the person proved they can read mail sent to `email` (one-time code). */
+  emailVerified: boolean;
   phone: string | null;
   displayName: string | null;
 }
@@ -80,6 +82,8 @@ export interface Me {
   user: User;
   roles: string[];
   permissions: string[];
+  /** What this deployment can do; hides what would only fail (e.g. codes with no email provider). */
+  features: { emailCodes: boolean };
 }
 
 export interface Exam {
@@ -184,15 +188,35 @@ export interface Money {
 export interface PlanOffer {
   id: string;
   name: string;
+  description: string | null;
+  features: string[];
+  /** The plan the admin recommends; shown first-among-equals. */
+  highlighted: boolean;
   price: Money;
+  /** The struck-through "was" price, when the plan is on offer. */
+  compareAtPrice: Money | null;
   durationDays: number | null;
+  /** The exams the plan unlocks: one, or several for a bundle. */
+  exams: { id: string; nameAr: string }[];
+  isBundle: boolean;
 }
+
+export type PaymentStatus = "PENDING" | "SUCCEEDED" | "FAILED" | "REFUNDED" | "CANCELLED";
 
 export interface Payment {
   id: string;
-  status: "PENDING" | "SUCCEEDED" | "FAILED" | "REFUNDED" | "CANCELLED";
+  planId: string;
+  /** What was bought, as named at the time. Null for payments older than that record. */
+  planName: string | null;
+  examIds: string[];
+  status: PaymentStatus;
   amount: Money;
   checkoutUrl: string | null;
+  checkoutExpiresAt: string | null;
+  paidAt: string | null;
+  /** Until when a full refund can be asked for; only on a paid payment. */
+  refundableUntil: string | null;
+  createdAt: string;
 }
 
 export interface ExamAccess {
@@ -262,6 +286,26 @@ export const register = (body: {
 }) => api<{ user: User }>("/auth/register", { method: "POST", body });
 
 export const logout = () => api<void>("/auth/logout", { method: "POST" });
+
+/** What the API says about a code it just mailed. */
+export interface CodeRequested {
+  validForMinutes: number;
+  /** The earliest a new code may be asked for. */
+  resendAfterSeconds: number;
+}
+
+export const requestEmailVerification = () =>
+  api<CodeRequested>("/auth/email/verification", { method: "POST" });
+
+export const confirmEmail = (code: string) =>
+  api<void>("/auth/email/verify", { method: "POST", body: { code } });
+
+/** Answers the same whether or not the address has an account. */
+export const forgotPassword = (email: string) =>
+  api<CodeRequested>("/auth/password/forgot", { method: "POST", body: { email } });
+
+export const resetPassword = (body: { email: string; code: string; newPassword: string }) =>
+  api<void>("/auth/password/reset", { method: "POST", body });
 
 export const listExams = () => api<{ items: Exam[] }>("/exams");
 
@@ -432,6 +476,11 @@ export const getResult = (sessionId: string) =>
   api<PreliminaryResult>(`/assessments/${sessionId}/result`);
 
 export const listPlans = (examId: string) => api<{ items: PlanOffer[] }>(`/exams/${examId}/plans`);
+
+/** Every plan on sale. Public: also used on the landing page, signed out. */
+export const listPlanCatalog = () => api<{ items: PlanOffer[] }>("/plans");
+
+export const listMyPayments = () => api<{ items: Payment[] }>("/me/payments");
 
 export const checkout = (planId: string, idempotencyKey: string) =>
   api<Payment>("/payments", { method: "POST", idempotencyKey, body: { planId } });

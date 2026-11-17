@@ -433,10 +433,15 @@ async function seed(sql: Sql): Promise<void> {
       }
     }
 
-    await db`
-      INSERT INTO plans (exam_id, code, name, price_minor, currency, duration_days, status)
-      VALUES (${exam.id}, 'DEMO_QUDURAT_90', 'باقة القدرات التجريبية — 90 يومًا', 19900, 'SAR', 90,
-              'ACTIVE')`;
+    const [plan] = await db<{ id: string }[]>`
+      INSERT INTO plans (code, name, description, features, price_minor, currency, duration_days,
+                         status)
+      VALUES ('DEMO_QUDURAT_90', 'باقة القدرات التجريبية — 90 يومًا',
+              'كل ما تحتاجه لاختبار القدرات في مكان واحد.',
+              ${db.json(["التشخيص الكامل وملف المهارات", "تدريب تكيفي على نقاط ضعفك", "اختبار محاكٍ بتوقيت حقيقي"])},
+              19900, 'SAR', 90, 'ACTIVE')
+      RETURNING id`;
+    await db`INSERT INTO plan_exams (plan_id, exam_id) VALUES (${plan?.id ?? null}, ${exam.id})`;
   });
 
   const total = DOMAINS.reduce(

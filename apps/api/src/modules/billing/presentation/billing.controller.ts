@@ -7,6 +7,7 @@ import { uuidParam } from "../../../common/validation/schemas.js";
 import { ZodValidationPipe } from "../../../common/validation/zod-validation.pipe.js";
 import type { Principal } from "../../auth/domain/principal.js";
 import { CurrentPrincipal } from "../../auth/presentation/current-principal.decorator.js";
+import { Public } from "../../auth/presentation/public.decorator.js";
 import { EntitlementsService } from "../application/entitlements.service.js";
 import { PaymentsService } from "../application/payments.service.js";
 import { PlansService } from "../application/plans.service.js";
@@ -33,10 +34,27 @@ export class BillingController {
     private readonly payments: PaymentsService,
   ) {}
 
+  /**
+   * @Public: prices are what the landing page advertises. Nothing here is
+   * about the caller; the global rate limit applies.
+   */
+  @Public()
+  @Get("plans")
+  @ApiOperation({ summary: "Every plan on sale, in display order, with the exams each unlocks." })
+  async catalog() {
+    return { items: (await this.plans.catalogForSale()).map(toPlanOfferView) };
+  }
+
   @Get("exams/:examId/plans")
-  @ApiOperation({ summary: "Plans on sale for an exam." })
+  @ApiOperation({ summary: "Plans on sale that unlock an exam: its own and the bundles with it." })
   async plansForExam(@Param("examId", uuid) examId: string) {
     return { items: (await this.plans.listForSale(examId)).map(toPlanOfferView) };
+  }
+
+  @Get("me/payments")
+  @ApiOperation({ summary: "The caller's payments, newest first." })
+  async myPayments(@CurrentPrincipal() principal: Principal) {
+    return { items: (await this.payments.history(principal.userId)).map(toPaymentView) };
   }
 
   @Get("exams/:examId/my-access")

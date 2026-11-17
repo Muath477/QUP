@@ -14,6 +14,16 @@ import {
 } from "../../src/modules/billing/domain/money.js";
 import { canTransitionPlan } from "../../src/modules/billing/domain/plan-lifecycle.js";
 import {
+  checkoutStillMatches,
+  contentChanges,
+  contentProblems,
+  lockedFields,
+  type PlanContent,
+  purchasedTerms,
+  wouldAddAccess,
+} from "../../src/modules/billing/domain/plan-rules.js";
+import { refundableUntil } from "../../src/modules/billing/domain/refund-policy.js";
+import {
   isValidStreamSignature,
   signStreamPayload,
 } from "../../src/modules/billing/infrastructure/stream/stream-signature.js";
@@ -54,6 +64,78 @@ describe("money", () => {
     expect(isSupportedCurrency("KWD")).toBe(false);
     expect(isSupportedCurrency("toString")).toBe(false);
     expect(minimumSellablePriceMinor("SAR")).toBe(100);
+  });
+});
+
+describe("plan rules", () => {
+  const content: PlanContent = {
+    name: "الباقة الشاملة",
+    description: null,
+    features: ["أ", "ب"],
+    highlighted: false,
+    sortOrder: 0,
+    priceMinor: 39_900,
+    compareAtPriceMinor: null,
+    durationDays: 90,
+    examIds: ["exam-b", "exam-a"],
+  };
+
+  it.each([
+    ["DRAFT", { examIds: ["x"], priceMinor: 1 }, []],
+    ["ACTIVE", { priceMinor: 1, features: [], durationDays: null }, []],
+    ["ACTIVE", { examIds: ["x"], name: "n" }, ["examIds"]],
+    ["RETIRED", { name: "n", priceMinor: 1 }, ["name", "priceMinor"]],
+  ] as const)("in %s, locks %j to %j", (status, changes, locked) => {
+    expect(lockedFields(status, changes)).toEqual(locked);
+  });
+
+  it("wants the 'was' price above the price, and at least one distinct exam", () => {
+    expect(contentProblems(content)).toEqual([]);
+    expect(contentProblems({ ...content, compareAtPriceMinor: 39_900 })).toEqual([
+      "COMPARE_AT_NOT_ABOVE_PRICE",
+    ]);
+    expect(contentProblems({ ...content, examIds: [] })).toEqual(["NO_EXAMS"]);
+    expect(contentProblems({ ...content, examIds: ["a", "a"] })).toEqual(["DUPLICATE_EXAMS"]);
+  });
+
+  it("audits only what really changes, as before/after pairs", () => {
+    expect(contentChanges(content, { priceMinor: 39_900, features: ["أ", "ب"] })).toEqual({});
+    expect(contentChanges(content, { priceMinor: 29_900, features: ["أ"] })).toEqual({
+      "priceMinor.before": 39_900,
+      "priceMinor.after": 29_900,
+      "features.before": "أ | ب",
+      "features.after": "أ",
+    });
+  });
+
+  it("freezes what was bought, with exams in one global order", () => {
+    expect(purchasedTerms(content)).toEqual({
+      planName: "الباقة الشاملة",
+      durationDays: 90,
+      examIds: ["exam-a", "exam-b"],
+    });
+  });
+
+  it("reuses an open checkout only while it still sells what the plan sells", () => {
+    const terms = purchasedTerms(content);
+    const open = { amountMinor: 39_900, currency: "SAR", terms };
+    const plan = { ...content, currency: "SAR" };
+    expect(checkoutStillMatches(open, plan)).toBe(true);
+    expect(checkoutStillMatches(open, { ...plan, priceMinor: 29_900 })).toBe(false);
+    expect(checkoutStillMatches(open, { ...plan, durationDays: 365 })).toBe(false);
+    // A checkout from before terms were recorded is judged by its amount alone.
+    expect(checkoutStillMatches({ ...open, terms: null }, plan)).toBe(true);
+  });
+
+  it("sells unless the student already has every exam the plan covers", () => {
+    expect(wouldAddAccess([false])).toBe(true);
+    expect(wouldAddAccess([true, false, true])).toBe(true);
+    expect(wouldAddAccess([true, true, true])).toBe(false);
+  });
+
+  it("gives 48 hours to ask for a refund", () => {
+    expect(refundableUntil(null)).toBeNull();
+    expect(refundableUntil(NOW)).toEqual(new Date(NOW.getTime() + 48 * 3_600_000));
   });
 });
 

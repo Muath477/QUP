@@ -1,68 +1,165 @@
 import Link from "next/link";
+import { formatDate } from "@/lib/format";
+import {
+  LEGAL_CONTACT,
+  LEGAL_DOCUMENTS,
+  LEGAL_SLUGS,
+  LEGAL_UPDATED_AT,
+  type LegalBlock,
+  type LegalDocument,
+  type LegalListItem,
+} from "@/lib/legal";
+import { Icon } from "./icon";
 
-import { type LegalDocument, SUPPORT_EMAIL, SUPPORT_PHONE } from "@/lib/legal-content";
-
-const OTHER_DOCUMENT = {
-  privacy: { href: "/terms", label: "الشروط والأحكام" },
-  terms: { href: "/privacy", label: "سياسة الخصوصية" },
-} as const;
-
-export function LegalPage({
-  document,
-  kind,
-}: {
-  document: LegalDocument;
-  kind: keyof typeof OTHER_DOCUMENT;
-}) {
-  const other = OTHER_DOCUMENT[kind];
+/** Terms, privacy and refunds share one reading layout, so they read as one set. */
+export function LegalPage({ document }: { document: LegalDocument }) {
   return (
-    <main id="main-content" className="page page--narrow legal">
-      <header className="legal__header">
-        <p className="eyebrow">وثائق المنصة</p>
-        <h1>{document.title}</h1>
-        {document.intro ? <p className="legal__intro">{document.intro}</p> : null}
+    <main id="main-content" className="legal">
+      <header className="legal-hero">
+        <div className="legal-hero__inner">
+          <p className="eyebrow eyebrow--on-dark">المركز القانوني</p>
+          <h1>{document.title}</h1>
+          <p className="legal-hero__summary">{document.summary}</p>
+          <p className="legal-hero__meta">
+            آخر تحديث: <time dateTime={LEGAL_UPDATED_AT}>{formatDate(LEGAL_UPDATED_AT)}</time>
+          </p>
+          <nav className="legal-tabs" aria-label="الوثائق القانونية">
+            {LEGAL_SLUGS.map((slug) => (
+              <Link
+                key={slug}
+                href={`/${slug}`}
+                aria-current={slug === document.slug ? "page" : undefined}
+              >
+                {LEGAL_DOCUMENTS[slug].title}
+              </Link>
+            ))}
+          </nav>
+        </div>
       </header>
 
-      <ol className="legal__sections">
-        {document.sections.map((section) => (
-          <li key={section.title} className="legal__section">
-            <h2>{section.title}</h2>
-            {section.points.length > 1 ? (
-              <ul>
-                {section.points.map((point) => (
-                  <li key={point}>{point}</li>
-                ))}
-              </ul>
-            ) : (
-              <p>{section.points[0]}</p>
-            )}
-          </li>
-        ))}
-      </ol>
+      <div className="legal-body">
+        <aside className="legal-toc">
+          <nav aria-label="محتويات الصفحة">
+            <p className="legal-toc__title">المحتويات</p>
+            <ol>
+              {document.sections.map((section) => (
+                <li key={section.id}>
+                  <a href={`#${section.id}`}>{section.title}</a>
+                </li>
+              ))}
+              <li>
+                <a href="#contact">التواصل</a>
+              </li>
+            </ol>
+          </nav>
+        </aside>
 
-      <section className="legal__contact" aria-labelledby="legal-contact">
-        <h2 id="legal-contact">التواصل</h2>
-        <p>{document.contactLead}</p>
-        <ul>
-          <li>
-            البريد الإلكتروني:{" "}
-            <a href={`mailto:${SUPPORT_EMAIL}`} dir="ltr">
-              {SUPPORT_EMAIL}
-            </a>
-          </li>
-          <li>
-            رقم التواصل:{" "}
-            <a href={`tel:${SUPPORT_PHONE}`} dir="ltr">
-              {SUPPORT_PHONE}
-            </a>
-          </li>
-        </ul>
-      </section>
+        <article className="legal-article">
+          <p className="legal-intro">{document.intro}</p>
 
-      <p className="legal__closing">{document.closing}</p>
-      <p className="small muted">
-        اقرأ أيضًا: <Link href={other.href}>{other.label}</Link>
-      </p>
+          {document.highlights ? (
+            <dl className="legal-highlights">
+              {document.highlights.map((highlight) => (
+                <div key={highlight.value}>
+                  <dt>{highlight.label}</dt>
+                  <dd>{highlight.value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+
+          {document.sections.map((section, index) => (
+            <section
+              key={section.id}
+              id={section.id}
+              className="legal-section"
+              aria-labelledby={`${section.id}-title`}
+            >
+              <h2 id={`${section.id}-title`}>
+                <span className="legal-section__number" aria-hidden="true">
+                  {index + 1}
+                </span>
+                {section.title}
+              </h2>
+              {section.blocks.map((block, blockIndex) => (
+                // Blocks are fixed content in a fixed order; their position is their identity.
+                // biome-ignore lint/suspicious/noArrayIndexKey: static, never reordered
+                <LegalBlockView key={blockIndex} block={block} />
+              ))}
+            </section>
+          ))}
+
+          <section id="contact" className="legal-contact" aria-labelledby="contact-title">
+            <h2 id="contact-title">التواصل</h2>
+            <p>{document.contactPrompt}</p>
+            <ul>
+              <li>
+                <span>البريد الإلكتروني</span>
+                <a href={`mailto:${LEGAL_CONTACT.email}`} dir="ltr">
+                  {LEGAL_CONTACT.email}
+                </a>
+              </li>
+              <li>
+                <span>رقم التواصل</span>
+                <a href={`tel:${LEGAL_CONTACT.phoneInternational}`} dir="ltr">
+                  {LEGAL_CONTACT.phone}
+                </a>
+              </li>
+            </ul>
+          </section>
+
+          {document.acknowledgement ? (
+            <p className="legal-acknowledgement">{document.acknowledgement}</p>
+          ) : null}
+        </article>
+      </div>
     </main>
   );
+}
+
+function LegalBlockView({ block }: { block: LegalBlock }) {
+  switch (block.kind) {
+    case "paragraph":
+      return <p>{block.text}</p>;
+    case "note":
+      return <p className="legal-note">{block.text}</p>;
+    case "list":
+      return (
+        <ul className="legal-list">
+          {block.items.map((item) => (
+            <li key={listItemKey(item)}>
+              {typeof item === "string" ? (
+                item
+              ) : (
+                <>
+                  <strong>{item.term}:</strong> {item.text}
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      );
+    case "steps":
+      return (
+        <ol className="legal-steps">
+          {block.items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ol>
+      );
+    case "link":
+      return (
+        <p className="legal-see-also">
+          {block.text}{" "}
+          <Link href={block.href}>
+            {block.label}
+            <Icon name="arrow" />
+          </Link>
+        </p>
+      );
+  }
+}
+
+function listItemKey(item: LegalListItem): string {
+  return typeof item === "string" ? item : item.term;
 }

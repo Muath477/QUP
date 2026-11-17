@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { api, type Money, type Payment, type PaymentStatus } from "./api";
 
 export type PlanStatus = "DRAFT" | "ACTIVE" | "RETIRED";
 export type EntitlementSource = "PAYMENT" | "ADMIN" | "PROMO";
@@ -6,10 +6,16 @@ export type EntitlementStatus = "ACTIVE" | "EXPIRED" | "REVOKED";
 
 export interface AdminPlan {
   id: string;
-  examId: string;
+  /** The exams the plan unlocks: one, or several for a bundle. */
+  examIds: string[];
   code: string;
   name: string;
-  price: { amountMinor: number; currency: string };
+  description: string | null;
+  features: string[];
+  highlighted: boolean;
+  sortOrder: number;
+  price: Money;
+  compareAtPrice: Money | null;
   durationDays: number | null;
   status: PlanStatus;
   createdAt: string;
@@ -32,16 +38,40 @@ export interface StudentLookup {
   entitlements: AdminEntitlement[];
 }
 
-export interface CreatePlanInput {
-  examId: string;
-  code: string;
+export interface PlanContentInput {
+  examIds: string[];
   name: string;
+  description: string | null;
+  features: string[];
+  highlighted: boolean;
+  sortOrder: number;
   priceMinor: number;
-  currency: string;
+  compareAtPriceMinor: number | null;
   durationDays: number | null;
 }
 
-export type PlanChanges = Partial<Pick<CreatePlanInput, "name" | "priceMinor" | "durationDays">>;
+export interface CreatePlanInput extends PlanContentInput {
+  code: string;
+  currency: string;
+}
+
+/** On an offered plan the API refuses `examIds`; send only what may change. */
+export type PlanChanges = Partial<PlanContentInput>;
+
+export interface AdminPayment extends Payment {
+  planName: string;
+  student: StudentLookup["student"];
+  provider: string;
+  providerReference: string | null;
+  providerPaymentId: string | null;
+}
+
+export interface RevenueSummary {
+  since: string;
+  succeeded: { count: number; amount: Money };
+  refunded: { count: number; amount: Money };
+  abandoned: number;
+}
 
 export const listAdminPlans = () => api<{ items: AdminPlan[] }>("/admin/plans");
 
@@ -56,6 +86,16 @@ export const activatePlan = (planId: string) =>
 
 export const retirePlan = (planId: string) =>
   api<AdminPlan>(`/admin/plans/${planId}/retire`, { method: "POST" });
+
+export const listAdminPayments = (query: { status?: PaymentStatus; cursor?: string }) => {
+  const params = new URLSearchParams({ limit: "25" });
+  if (query.status) params.set("status", query.status);
+  if (query.cursor) params.set("cursor", query.cursor);
+  return api<{ items: AdminPayment[]; next: string | null }>(`/admin/payments?${params}`);
+};
+
+export const getRevenueSummary = (days: 7 | 30) =>
+  api<RevenueSummary>(`/admin/billing/summary?days=${days}`);
 
 export const lookupStudent = (identifier: string) =>
   api<StudentLookup>(`/admin/students/lookup?identifier=${encodeURIComponent(identifier)}`);

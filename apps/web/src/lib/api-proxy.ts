@@ -56,6 +56,8 @@ export function upstreamPath(segments: readonly string[]): string | null {
   if (segments.length === 0) return null;
   if (!segments.every((s) => SAFE_SEGMENT.test(s) && s !== "." && s !== "..")) return null;
   if (segments[0] === "payments" && segments[1] === "webhooks") return null;
+  // Likewise the email provider's delivery events (SNDR calls the API directly).
+  if (segments[0] === "email" && segments[1] === "webhooks") return null;
   return `/api/v1/${segments.join("/")}`;
 }
 

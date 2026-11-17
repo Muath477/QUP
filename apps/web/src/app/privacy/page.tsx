@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-
 import { LegalPage } from "@/components/legal-page";
-import { privacyPolicy } from "@/lib/legal-content";
+import { LEGAL_DOCUMENTS } from "@/lib/legal";
+
+const document = LEGAL_DOCUMENTS.privacy;
 
 export const metadata: Metadata = {
-  title: "سياسة الخصوصية | QUP",
-  description: "ما البيانات التي تجمعها QUP، وكيف تستخدمها وتحميها، وما حقوقك فيها.",
+  title: document.title,
+  description: document.summary,
 };
 
 export default function PrivacyPage() {
-  return <LegalPage document={privacyPolicy} kind="privacy" />;
+  return <LegalPage document={document} />;
 }
